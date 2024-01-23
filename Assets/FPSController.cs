@@ -9,9 +9,11 @@ public class FPSController : MonoBehaviour
 
     private bool isFreeToMove = true;
 
+
     private void Update()
     {
         LookAround();
+        RotateCamera();
         if (AnyKeyDown())
         {
             HandleMovementInput();
@@ -45,6 +47,9 @@ public class FPSController : MonoBehaviour
     private bool isRightPressed = false;
     private Vector3 directionRN;
 
+    public float rotationAmount = 100;
+    public float rotationLerpSpeed = 5f;
+
     private void HandleMovementInput()
     {
         if (isFreeToMove)
@@ -67,7 +72,6 @@ public class FPSController : MonoBehaviour
             // Apply momentum to the position
             transform.position += velocity * Time.deltaTime;
 
-            
             directionRN = moveDirection;
         }
     }
@@ -82,6 +86,36 @@ public class FPSController : MonoBehaviour
 
         // Adjust rotation for up and down movement
         Camera.main.transform.Rotate(mouseY, 0f, 0f);
+    }
+
+    void RotateCamera()
+    {
+        // Rotate camera clockwise on key press (e)
+        if (Input.GetKey(KeyCode.E))
+        {
+            // Get the current camera rotation
+            Quaternion currentRotation = transform.rotation;
+
+            // Calculate the target rotation
+            Quaternion targetRotation = Quaternion.Euler(transform.rotation.eulerAngles + new Vector3(0f, 0f, -rotationAmount));
+
+            // Lerp towards the target rotation
+            transform.rotation = Quaternion.Lerp(currentRotation, targetRotation, Time.deltaTime * rotationLerpSpeed);
+        }
+
+        // Rotate camera anticlockwise on key press (q)
+        if (Input.GetKey(KeyCode.Q))
+        {
+            // Get the current camera rotation
+            Quaternion currentRotation = transform.rotation;
+
+            // Calculate the target rotation
+            Quaternion targetRotation = Quaternion.Euler(transform.rotation.eulerAngles + new Vector3(0f, 0f, rotationAmount));
+
+            // Lerp towards the target rotation
+            transform.rotation = Quaternion.Lerp(currentRotation, targetRotation, Time.deltaTime * rotationLerpSpeed);
+        }
+
     }
 
     private void UpdateKeyStates()
