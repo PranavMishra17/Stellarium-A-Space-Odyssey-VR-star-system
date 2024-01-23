@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class FPSController : MonoBehaviour
 {
@@ -10,12 +11,24 @@ public class FPSController : MonoBehaviour
 
     private void Update()
     {
-        HandleMovementInput();
-
+        LookAround();
+        if (AnyKeyDown())
+        {
+            HandleMovementInput();
+        }
+        else
+        {
+            ApplyDeceleration();
+        }
         if (Input.GetKeyDown(KeyCode.P))
         {
             ToggleMovement();
         }
+    }
+    private bool AnyKeyDown()
+    {
+        // Check if any key is currently pressed
+        return Input.anyKey;
     }
 
     private float shiftHoldTimer = 0f;
@@ -24,45 +37,64 @@ public class FPSController : MonoBehaviour
 
     private float decelerationFactor = 3f; // Adjust the deceleration factor as needed
 
+    private Vector3 velocity; // Player's movement velocity
+
+    private bool isForwardPressed = false;
+    private bool isBackPressed = false;
+    private bool isLeftPressed = false;
+    private bool isRightPressed = false;
+    private Vector3 directionRN;
+
     private void HandleMovementInput()
     {
         if (isFreeToMove)
         {
-            float horizontal = 0f;
-            float vertical = 0f;
-
-            if (Input.GetKey(KeyCode.W)) vertical = 1f;
-            if (Input.GetKey(KeyCode.S)) vertical = -1f;
-            if (Input.GetKey(KeyCode.A)) horizontal = -1f;
-            if (Input.GetKey(KeyCode.D)) horizontal = 1f;
+            UpdateKeyStates();
 
             // Rotate input based on camera
             Vector3 forwardDirection = Camera.main.transform.forward;
             Vector3 rightDirection = Camera.main.transform.right;
 
-            Vector3 moveDirection = forwardDirection * vertical + rightDirection * horizontal;
+            Vector3 moveDirection = forwardDirection * (isForwardPressed ? 1f : 0f)
+                                   + forwardDirection * (isBackPressed ? -1f : 0f)
+                                   + rightDirection * (isRightPressed ? 1f : 0f)
+                                   + rightDirection * (isLeftPressed ? -1f : 0f);
 
             float currentSpeed = CalculateSpeed();
 
-            Vector3 targetTranslation = moveDirection * currentSpeed * Time.deltaTime;
+            velocity = moveDirection * currentSpeed;
 
-            // Smoothly adjust position using Translate
-            transform.Translate(targetTranslation, Space.World);
+            // Apply momentum to the position
+            transform.position += velocity * Time.deltaTime;
 
-            // Look up and down
-            float mouseX = Input.GetAxis("Mouse X") * rotationSpeed;
-            float mouseY = -Input.GetAxis("Mouse Y") * rotationSpeed;
-
-            transform.Rotate(0f, mouseX, 0f);
-
-            // Adjust rotation for up and down movement
-            Camera.main.transform.Rotate(mouseY, 0f, 0f);
+            
+            directionRN = moveDirection;
         }
+    }
+
+    private void LookAround()
+    {
+        // Look up and down
+        float mouseX = Input.GetAxis("Mouse X") * rotationSpeed;
+        float mouseY = -Input.GetAxis("Mouse Y") * rotationSpeed;
+
+        transform.Rotate(0f, mouseX, 0f);
+
+        // Adjust rotation for up and down movement
+        Camera.main.transform.Rotate(mouseY, 0f, 0f);
+    }
+
+    private void UpdateKeyStates()
+    {
+        isForwardPressed = Input.GetKey(KeyCode.W);
+        isBackPressed = Input.GetKey(KeyCode.S);
+        isLeftPressed = Input.GetKey(KeyCode.A);
+        isRightPressed = Input.GetKey(KeyCode.D);
     }
 
     private float CalculateSpeed()
     {
-        float baseSpeed = Input.GetKey(KeyCode.LeftShift) ? movementSpeed * speedUpMultiplier : movementSpeed;
+        float baseSpeed = movementSpeed;
 
         if (Input.GetKey(KeyCode.LeftShift))
         {
@@ -72,18 +104,22 @@ public class FPSController : MonoBehaviour
             float smoothMultiplier = Mathf.Lerp(1f, targetSpeedMultiplier, shiftHoldTimer / shiftHoldDuration);
             baseSpeed *= smoothMultiplier;
         }
-        else
-        {
-            // Smoothly decelerate when movement buttons are released
-            baseSpeed = Mathf.Lerp(baseSpeed, 0f, Time.deltaTime * decelerationFactor);
-        }
 
         // Ensure speed doesn't go negative during deceleration
         baseSpeed = Mathf.Max(baseSpeed, 0f);
 
         return baseSpeed;
     }
+    private void ApplyDeceleration()
+    {
+        // Smoothly decelerate when movement buttons are released
+        velocity = Vector3.Lerp(velocity, Vector3.zero, Time.deltaTime * decelerationFactor);
 
+        //velocity = directionRN * velocity.magnitude;
+
+        // Apply momentum to the position
+        transform.position += velocity * Time.deltaTime;
+    }
 
     private void ToggleMovement()
     {
