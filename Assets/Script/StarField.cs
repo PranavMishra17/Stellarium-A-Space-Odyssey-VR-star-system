@@ -7,6 +7,7 @@ public class StarField : MonoBehaviour
     [SerializeField] private float starSizeMin = 0f;
     [Range(0, 100)]
     [SerializeField] private float starSizeMax = 5f;
+
     private List<StarDataLoader.Star> stars;
     private List<GameObject> starObjects;
 
@@ -14,27 +15,31 @@ public class StarField : MonoBehaviour
 
     void Start()
     {
-        // Read in the star data.
-        StarDataLoader sdl = new StarDataLoader();
-        stars = sdl.LoadData();
+        // Read in the star data using the new StarDataLoader.
+        StarDataLoader starDataLoader = new StarDataLoader();
+        stars = starDataLoader.LoadData();
         starObjects = new List<GameObject>();
+
         foreach (StarDataLoader.Star star in stars)
         {
-            // Create star game objects.
-            GameObject stargo = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            stargo.transform.parent = transform;
-            //stargo.name = $"HR {star.catalog_number}";
-            stargo.transform.localPosition = star.position * starFieldScale;
-            //stargo.transform.localScale = Vector3.one * Mathf.Lerp(starSizeMin, starSizeMax, star.size);
-            stargo.transform.LookAt(transform.position);
-            stargo.transform.Rotate(0, 180, 0);
-            Material material = stargo.GetComponent<MeshRenderer>().material;
+            // Create star game objects as quads.
+            GameObject starObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            starObject.transform.parent = transform;
+            starObject.name = $"HR {star.hipparcosNumber}";
+            starObject.transform.localPosition = star.position * starFieldScale;
+            starObject.transform.localScale = Vector3.one * Mathf.Lerp(starSizeMin, starSizeMax, star.size);
+            starObject.transform.LookAt(transform.position);
+            starObject.transform.Rotate(0, 180, 0);
 
-            //material.shader = Shader.Find("Standard");
+            // Assign the Unlit/StarShader to the material.
+            Material material = starObject.GetComponent<MeshRenderer>().material;
             material.shader = Shader.Find("Unlit/StarShader");
+
+            // Set material properties.
             material.SetFloat("_Size", Mathf.Lerp(starSizeMin, starSizeMax, star.size));
             material.color = star.colour;
-            starObjects.Add(stargo);
+
+            starObjects.Add(starObject);
         }
     }
 
@@ -46,7 +51,6 @@ public class StarField : MonoBehaviour
             Camera.main.transform.RotateAround(Camera.main.transform.position, Camera.main.transform.right, Input.GetAxis("Mouse Y"));
             Camera.main.transform.RotateAround(Camera.main.transform.position, Vector3.up, -Input.GetAxis("Mouse X"));
         }
-        return;
     }
 
     private void OnValidate()

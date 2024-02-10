@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using UnityEngine;
 
 public class StarDataLoader : MonoBehaviour
@@ -116,43 +117,63 @@ public class StarDataLoader : MonoBehaviour
             velocity = new Vector3(vx, vy, vz);
         }
     }
+
     public List<Star> LoadData()
     {
         List<Star> stars = new List<Star>();
-        // Open the binary file for reading.
-        const string filename = "athyg_v31-1"; // Change this to your new dataset file name
+        const string filename = "athyg"; // Change this to your new dataset file name
         TextAsset textAsset = Resources.Load(filename) as TextAsset;
-        MemoryStream stream = new MemoryStream(textAsset.bytes);
-        BinaryReader br = new BinaryReader(stream);
 
-        // Read the header if necessary
-
-        // Read one field at a time.
-        while (br.BaseStream.Position != br.BaseStream.Length)
+        if (textAsset == null)
         {
-            float hipparcosNumber = br.ReadSingle();
-            float distanceFromSol = br.ReadSingle();
-            float x0 = br.ReadSingle();
-            float y0 = br.ReadSingle();
-            float z0 = br.ReadSingle();
-            Vector3 position = new Vector3(x0, y0, z0);
-            byte spectralType = br.ReadByte();
-            short magnitude = br.ReadInt16();
-            float vx = br.ReadSingle();
-            float vy = br.ReadSingle();
-            float vz = br.ReadSingle();
-            Vector3 velocity = new Vector3(vx, vy, vz);
+            Debug.LogError($"Could not load {filename} from Resources folder.");
+            return stars;
+        }
+
+        StringReader reader = new StringReader(textAsset.text);
+
+        // Read and discard the header line if it exists
+        string headerLine = reader.ReadLine();
+
+        int validStarCount = 0;
+        while (reader.Peek() != -1 && validStarCount < 100)
+        {
+            string[] data = reader.ReadLine().Split(',');
+
+            if (data.Length < 31) // Ensure the row has enough columns
+            {
+                Debug.LogWarning($"Skipping row with insufficient columns: {string.Join(", ", data)}");
+                continue;
+            }
+
+            if (!float.TryParse(data[15], out float distanceFromSol) ||
+                !float.TryParse(data[16], out float x0) ||
+                !float.TryParse(data[17], out float y0) ||
+                !float.TryParse(data[18], out float z0) ||
+                !float.TryParse(data[20], out float magnitude))
+            {
+                Debug.LogWarning($"Skipping row with invalid numeric data: {string.Join(", ", data)}");
+                continue;
+            }
 
             // Additional columns for the new dataset
+            Star star = new Star(0, distanceFromSol, new Vector3(x0, y0, z0), Color.white, 1f, 0f, 0f, Vector3.zero);
 
-            Star star = new Star(hipparcosNumber, distanceFromSol, position,
-                                 Color.white, 1f, 0f, 0f, Vector3.zero); // Initialize with default values
+            if (data[30].Length > 0)
+            {
+                star.colour = star.SetColour((byte)data[30][0], 0);
+            }
+            else
+            {
+                Debug.LogWarning($"Skipping row with empty spectral type: {string.Join(", ", data)}");
+                continue;
+            }
 
-            star.colour = star.SetColour(spectralType, 0);
-            star.size = star.SetSize(magnitude);
+            star.size = star.SetSize((short)magnitude);
             star.CalculateAbsoluteMagnitude(distanceFromSol, magnitude);
 
             stars.Add(star);
+            validStarCount++;
         }
 
         return stars;
