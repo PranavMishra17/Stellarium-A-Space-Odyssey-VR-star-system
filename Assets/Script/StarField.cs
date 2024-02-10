@@ -23,7 +23,7 @@ public class StarField : MonoBehaviour
             // Create star game objects.
             GameObject stargo = GameObject.CreatePrimitive(PrimitiveType.Quad);
             stargo.transform.parent = transform;
-            stargo.name = $"HR {star.catalog_number}";
+            //stargo.name = $"HR {star.catalog_number}";
             stargo.transform.localPosition = star.position * starFieldScale;
             //stargo.transform.localScale = Vector3.one * Mathf.Lerp(starSizeMin, starSizeMax, star.size);
             stargo.transform.LookAt(transform.position);

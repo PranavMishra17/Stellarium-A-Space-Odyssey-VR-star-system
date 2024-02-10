@@ -6,57 +6,38 @@ public class StarDataLoader : MonoBehaviour
 {
     public class Star
     {
-
-        // Three variables used to define the star in the game.
-        public float catalog_number;
+        // Variables to define the star in the game.
+        public float hipparcosNumber;
+        public float distanceFromSol;
         public Vector3 position;
         public Color colour;
         public float size;
+        public float absoluteMagnitude;
+        public float relativeMagnitude;
+        public Vector3 velocity;
 
-        // Keep the original points so we can recalculate based on dates.
-        private readonly double right_ascension;
-        private readonly double declination;
-        private readonly float ra_proper_motion;
-        private readonly float dec_proper_motion;
-
-
-        // Constructor
-        public Star(float catalog_number, double right_ascension, double declination, byte spectral_type,
-                    byte spectral_index, short magnitude, float ra_proper_motion, float dec_proper_motion)
+        // Constructor for the new dataset
+        public Star(float hipparcosNumber, float distanceFromSol, Vector3 position,
+                    Color colour, float size, float absoluteMagnitude, float relativeMagnitude, Vector3 velocity)
         {
-            this.catalog_number = catalog_number;
-            // Save the location parameters.
-            this.right_ascension = right_ascension;
-            this.declination = declination;
-            this.ra_proper_motion = ra_proper_motion;
-            this.dec_proper_motion = dec_proper_motion;
-            // Set the position
-            position = GetBasePosition();
-            // Set the Colour.
-            colour = SetColour(spectral_type, spectral_index);
-            // Set the Size.
-            size = SetSize(magnitude);
+            this.hipparcosNumber = hipparcosNumber;
+            this.distanceFromSol = distanceFromSol;
+            this.position = position;
+            this.colour = colour;
+            this.size = size;
+            this.absoluteMagnitude = absoluteMagnitude;
+            this.relativeMagnitude = relativeMagnitude;
+            this.velocity = velocity;
         }
 
         // Get the starting position shown in the file.
         public Vector3 GetBasePosition()
         {
-            // Place stars on a cylinder using 2D trigonometry.
-            double x = System.Math.Cos(right_ascension);
-            double y = System.Math.Sin(declination);
-            double z = System.Math.Sin(right_ascension);
-
-            // Pull in ends to make the sphere
-            // Work out y-adjacent and use this to scale (as on unit sphere)
-            double y_cos = System.Math.Cos(declination);
-            x *= y_cos;
-            z *= y_cos;
-
             // Return as float
-            return new Vector3((float)x, (float)y, (float)z);
+            return position;
         }
 
-        private Color SetColour(byte spectral_type, byte spectral_index)
+        public Color SetColour(byte spectral_type, byte spectral_index)
         {
             Color IntColour(int r, int g, int b)
             {
@@ -114,47 +95,68 @@ public class StarDataLoader : MonoBehaviour
             return Color.Lerp(col[col_idx], col[col_idx + 1], percent);
         }
 
-        private float SetSize(short magnitude)
+        public float SetSize(short magnitude)
         {
             // Linear isn't factually accurate, but the effect is sufficient.
             return 1 - Mathf.InverseLerp(-146, 796, magnitude);
         }
-    }
 
+        public void CalculateAbsoluteMagnitude(float distanceFromSol, float relativeMagnitude)
+        {
+            // Implement your absolute magnitude calculation logic based on distanceFromSol and relativeMagnitude
+            // For example, a simplistic calculation:
+            // Assuming you have a formula like AbsoluteMagnitude = ApparentMagnitude - 5 * log10(Distance / 10 parsecs)
+            // You can adjust this formula based on your actual requirements.
+            absoluteMagnitude = relativeMagnitude - 5 * Mathf.Log10(distanceFromSol / 10f);
+        }
+
+        public void CalculateVelocity(float vx, float vy, float vz)
+        {
+            // Set the velocity vector based on the provided components
+            velocity = new Vector3(vx, vy, vz);
+        }
+    }
     public List<Star> LoadData()
     {
         List<Star> stars = new List<Star>();
         // Open the binary file for reading.
-        const string filename = "BSC5";
+        const string filename = "athyg_v31-1"; // Change this to your new dataset file name
         TextAsset textAsset = Resources.Load(filename) as TextAsset;
         MemoryStream stream = new MemoryStream(textAsset.bytes);
         BinaryReader br = new BinaryReader(stream);
 
-        // Read the header
-        int sequence_offset = br.ReadInt32();
-        int start_index = br.ReadInt32();
-        int num_stars = -br.ReadInt32();
-        int star_number_settings = br.ReadInt32();
-        int proper_motion_included = br.ReadInt32();
-        int num_magnitudes = br.ReadInt32();
-        int star_data_size = br.ReadInt32();
+        // Read the header if necessary
 
         // Read one field at a time.
-        for (int i = 0; i < num_stars; i++)
+        while (br.BaseStream.Position != br.BaseStream.Length)
         {
-            float catalog_number = br.ReadSingle();
-            double right_ascension = br.ReadDouble();
-            // Angular distance from celestial equator.
-            double declination = br.ReadDouble();
-            byte spectral_type = br.ReadByte();
-            byte spectral_index = br.ReadByte();
+            float hipparcosNumber = br.ReadSingle();
+            float distanceFromSol = br.ReadSingle();
+            float x0 = br.ReadSingle();
+            float y0 = br.ReadSingle();
+            float z0 = br.ReadSingle();
+            Vector3 position = new Vector3(x0, y0, z0);
+            byte spectralType = br.ReadByte();
             short magnitude = br.ReadInt16();
-            float ra_proper_motion = br.ReadSingle();
-            float dec_proper_motion = br.ReadSingle();
-            Star star = new Star(catalog_number, right_ascension, declination, spectral_type, spectral_index, magnitude, ra_proper_motion, dec_proper_motion);
+            float vx = br.ReadSingle();
+            float vy = br.ReadSingle();
+            float vz = br.ReadSingle();
+            Vector3 velocity = new Vector3(vx, vy, vz);
+
+            // Additional columns for the new dataset
+
+            Star star = new Star(hipparcosNumber, distanceFromSol, position,
+                                 Color.white, 1f, 0f, 0f, Vector3.zero); // Initialize with default values
+
+            star.colour = star.SetColour(spectralType, 0);
+            star.size = star.SetSize(magnitude);
+            star.CalculateAbsoluteMagnitude(distanceFromSol, magnitude);
+
             stars.Add(star);
         }
 
         return stars;
     }
+
+
 }

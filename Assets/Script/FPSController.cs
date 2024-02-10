@@ -4,7 +4,8 @@ using UnityEngine.EventSystems;
 public class FPSController : MonoBehaviour
 {
     public float movementSpeed = 5f;
-    public float rotationSpeed = 2f;
+    public float rotationSpeedLA = 2f;
+    public float movearoundspeed = 30f;
     public float speedUpMultiplier = 2f;
 
     private bool isFreeToMove = true;
@@ -119,19 +120,14 @@ public class FPSController : MonoBehaviour
 
             directionRN = moveDirection;
 
-            // Handle vertical movement (up and down)
-            HandleVerticalMovement();
-
-            // Handle lateral movement (left and right)
-            HandleLateralMovement();
         }
     }
 
     private void LookAround()
     {
         // Look up and down
-        float mouseX = Input.GetAxis("Mouse X") * rotationSpeed;
-        float mouseY = -Input.GetAxis("Mouse Y") * rotationSpeed;
+        float mouseX = Input.GetAxis("Mouse X") * rotationSpeedLA;
+        float mouseY = -Input.GetAxis("Mouse Y") * rotationSpeedLA;
 
         transform.Rotate(0f, mouseX, 0f);
 
@@ -199,7 +195,7 @@ public class FPSController : MonoBehaviour
         }
 
         // Rotate the camera/player locally
-        transform.Rotate(0f, lateralInput * rotationSpeed * Time.deltaTime, 0f);
+        transform.Rotate(0f, lateralInput * movearoundspeed * Time.deltaTime, 0f);
     }
     private void UpdateKeyStates()
     {
