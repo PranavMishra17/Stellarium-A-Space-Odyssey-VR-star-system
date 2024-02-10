@@ -14,32 +14,41 @@ public class FPSController : MonoBehaviour
     {
         LookAround();
         RotateCamera();
-        if (AnyKeyDown())
+
+
+        //HandleMovementInput();
+        //ApplyDeceleration();
+        if (!ASWD_down())
         {
-            HandleMovementInput();
+            ApplyDeceleration();
+            Debug.Log("deacc");
         }
         else
         {
-            ApplyDeceleration();
+            HandleMovementInput();
         }
         if (Input.GetKeyDown(KeyCode.P))
         {
             ToggleMovement();
         }
     }
-    private bool AnyKeyDown()
+    private bool ASWD_down()
     {
-        // Check if any key is currently pressed
-        return Input.anyKey;
+        // Check if any of the ASWD keys are currently pressed
+        return Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.W);
     }
 
+
     private float shiftHoldTimer = 0f;
+    private float deaccTimer = 0f;
     private float shiftHoldDuration = 5f; // Set the duration after which speed increases
+    private float deaccelerationDuration = 5f;
+
     public float targetSpeedMultiplier = 4f; // Set the intended speed multiplier
 
-    private float decelerationFactor = 3f; // Adjust the deceleration factor as needed
+    public float decelerationFactor = 3f; // Adjust the deceleration factor as needed
 
-    private Vector3 velocity; // Player's movement velocity
+    public Vector3 velocity; // Player's movement velocity
 
     private bool isForwardPressed = false;
     private bool isBackPressed = false;
@@ -49,6 +58,8 @@ public class FPSController : MonoBehaviour
 
     public float rotationAmount = 100;
     public float rotationLerpSpeed = 5f;
+
+    public Vector3 moveDirection;
 
     private void HandleMovementInput()
     {
@@ -60,10 +71,16 @@ public class FPSController : MonoBehaviour
             Vector3 forwardDirection = Camera.main.transform.forward;
             Vector3 rightDirection = Camera.main.transform.right;
 
-            Vector3 moveDirection = forwardDirection * (isForwardPressed ? 1f : 0f)
+            moveDirection = forwardDirection * (isForwardPressed ? 1f : 0f)
                                    + forwardDirection * (isBackPressed ? -1f : 0f)
                                    + rightDirection * (isRightPressed ? 1f : 0f)
                                    + rightDirection * (isLeftPressed ? -1f : 0f);
+
+            // If no keys are pressed, maintain the last non-zero movement direction
+            if (moveDirection.magnitude == 0f && directionRN.magnitude != 0f)
+            {
+                moveDirection = directionRN;
+            }
 
             float currentSpeed = CalculateSpeed();
 
@@ -146,13 +163,33 @@ public class FPSController : MonoBehaviour
     }
     private void ApplyDeceleration()
     {
-        // Smoothly decelerate when movement buttons are released
-        velocity = Vector3.Lerp(velocity, Vector3.zero, Time.deltaTime * decelerationFactor);
 
-        //velocity = directionRN * velocity.magnitude;
+        float baseSpeed = movementSpeed;
+
+        if (!ASWD_down())
+        {
+            deaccTimer += Time.deltaTime;
+
+            // Smoothly interpolate to the target speed multiplier
+            float smoothMultiplier = Mathf.Lerp(1f, 0f, deaccTimer / deaccelerationDuration);
+            baseSpeed *= smoothMultiplier;
+        }
+        else
+        {
+            // Reset the timer when any ASWD key is pressed
+            deaccTimer = 0f;
+        }
+
+        // Ensure speed doesn't go negative during deceleration
+        baseSpeed = Mathf.Max(baseSpeed, 0f);
+
+        velocity = moveDirection * baseSpeed;
 
         // Apply momentum to the position
         transform.position += velocity * Time.deltaTime;
+
+        directionRN = moveDirection;
+
     }
 
     private void ToggleMovement()
