@@ -8,6 +8,7 @@ public class FPSController : MonoBehaviour
     public float speedUpMultiplier = 2f;
 
     private bool isFreeToMove = true;
+    public float verticalSpeed = 10f;
 
 
     private void Update()
@@ -20,13 +21,34 @@ public class FPSController : MonoBehaviour
         //ApplyDeceleration();
         if (!ASWD_down())
         {
-            ApplyDeceleration();
-            Debug.Log("deacc");
+            shiftHoldTimer = 0f;
+            //ApplyDeceleration();
+            //Debug.Log("deacc");
+        }
+
+        if(isFreeToMove)
+        {
+            HandleLateralMovement();
+            HandleVerticalMovement();
+        }
+
+
+
+        if (Input.GetKey(KeyCode.Space))
+        {
+            StartDeceleration();
         }
         else
         {
             HandleMovementInput();
         }
+
+        if (isDecelerating)
+        {
+            ApplyDeceleration();
+        }
+
+
         if (Input.GetKeyDown(KeyCode.P))
         {
             ToggleMovement();
@@ -40,9 +62,7 @@ public class FPSController : MonoBehaviour
 
 
     private float shiftHoldTimer = 0f;
-    private float deaccTimer = 0f;
     private float shiftHoldDuration = 5f; // Set the duration after which speed increases
-    private float deaccelerationDuration = 5f;
 
     public float targetSpeedMultiplier = 4f; // Set the intended speed multiplier
 
@@ -60,6 +80,10 @@ public class FPSController : MonoBehaviour
     public float rotationLerpSpeed = 5f;
 
     public Vector3 moveDirection;
+    private bool isDecelerating = false;
+    private float deaccelerationTimer = 0f;
+    public float deaccelerationDuration = 1f; // Adjust the duration as needed
+
 
     private void HandleMovementInput()
     {
@@ -79,17 +103,27 @@ public class FPSController : MonoBehaviour
             // If no keys are pressed, maintain the last non-zero movement direction
             if (moveDirection.magnitude == 0f && directionRN.magnitude != 0f)
             {
-                moveDirection = directionRN;
+                moveDirection = directionRN.normalized;
             }
 
-            float currentSpeed = CalculateSpeed();
-
+            float currentSpeed = velocity.magnitude;
+            if (ASWD_down())
+            {
+                currentSpeed = CalculateSpeed();
+            }
+            
             velocity = moveDirection * currentSpeed;
 
             // Apply momentum to the position
             transform.position += velocity * Time.deltaTime;
 
             directionRN = moveDirection;
+
+            // Handle vertical movement (up and down)
+            HandleVerticalMovement();
+
+            // Handle lateral movement (left and right)
+            HandleLateralMovement();
         }
     }
 
@@ -108,7 +142,7 @@ public class FPSController : MonoBehaviour
     void RotateCamera()
     {
         // Rotate camera clockwise on key press (e)
-        if (Input.GetKey(KeyCode.E))
+        if (Input.GetKey(KeyCode.O))
         {
             // Get the current camera rotation
             Quaternion currentRotation = transform.rotation;
@@ -121,7 +155,7 @@ public class FPSController : MonoBehaviour
         }
 
         // Rotate camera anticlockwise on key press (q)
-        if (Input.GetKey(KeyCode.Q))
+        if (Input.GetKey(KeyCode.U))
         {
             // Get the current camera rotation
             Quaternion currentRotation = transform.rotation;
@@ -134,7 +168,39 @@ public class FPSController : MonoBehaviour
         }
 
     }
+    private void HandleVerticalMovement()
+    {
+        float verticalInput = 0f;
 
+        if (Input.GetKey(KeyCode.R)) // Move up
+        {
+            verticalInput = 1f;
+        }
+        else if (Input.GetKey(KeyCode.F)) // Move down
+        {
+            verticalInput = -1f;
+        }
+
+        // Smoothly translate the camera/player vertically
+        transform.Translate(Vector3.up * verticalInput * verticalSpeed * Time.deltaTime, Space.World);
+    }
+
+    private void HandleLateralMovement()
+    {
+        float lateralInput = 0f;
+
+        if (Input.GetKey(KeyCode.Q)) // Move to the left
+        {
+            lateralInput = -1f;
+        }
+        else if (Input.GetKey(KeyCode.E)) // Move to the right
+        {
+            lateralInput = 1f;
+        }
+
+        // Rotate the camera/player locally
+        transform.Rotate(0f, lateralInput * rotationSpeed * Time.deltaTime, 0f);
+    }
     private void UpdateKeyStates()
     {
         isForwardPressed = Input.GetKey(KeyCode.W);
@@ -146,6 +212,7 @@ public class FPSController : MonoBehaviour
     private float CalculateSpeed()
     {
         float baseSpeed = movementSpeed;
+        //float baseSpeed = velocity.magnitude;
 
         if (Input.GetKey(KeyCode.LeftShift))
         {
@@ -161,35 +228,37 @@ public class FPSController : MonoBehaviour
 
         return baseSpeed;
     }
+    private void StartDeceleration()
+    {
+        if (!isDecelerating && velocity.magnitude > 0f)
+        {
+            // Start deceleration
+            isDecelerating = true;
+            deaccelerationTimer = 0f;
+        }
+    }
+
     private void ApplyDeceleration()
     {
+        deaccelerationTimer += Time.deltaTime;
 
-        float baseSpeed = movementSpeed;
+        // Smoothly interpolate to zero velocity
+        float smoothMultiplier = Mathf.Lerp(1f, 0f, deaccelerationTimer / deaccelerationDuration);
+        velocity *= smoothMultiplier;
 
-        if (!ASWD_down())
-        {
-            deaccTimer += Time.deltaTime;
-
-            // Smoothly interpolate to the target speed multiplier
-            float smoothMultiplier = Mathf.Lerp(1f, 0f, deaccTimer / deaccelerationDuration);
-            baseSpeed *= smoothMultiplier;
-        }
-        else
-        {
-            // Reset the timer when any ASWD key is pressed
-            deaccTimer = 0f;
-        }
-
-        // Ensure speed doesn't go negative during deceleration
-        baseSpeed = Mathf.Max(baseSpeed, 0f);
-
-        velocity = moveDirection * baseSpeed;
+        // Ensure velocity doesn't go negative during deceleration
+        velocity = Vector3.Max(velocity, Vector3.zero);
 
         // Apply momentum to the position
         transform.position += velocity * Time.deltaTime;
 
-        directionRN = moveDirection;
-
+        // Stop decelerating when velocity becomes very small
+        if (velocity.magnitude < 0.01f)
+        {
+            isDecelerating = false;
+            velocity = Vector3.zero;
+            directionRN = Vector3.zero;
+        }
     }
 
     private void ToggleMovement()

@@ -129,6 +129,7 @@ public class StarDataLoader : MonoBehaviour
         TextAsset textAsset = Resources.Load(filename) as TextAsset;
         MemoryStream stream = new MemoryStream(textAsset.bytes);
         BinaryReader br = new BinaryReader(stream);
+
         // Read the header
         int sequence_offset = br.ReadInt32();
         int start_index = br.ReadInt32();

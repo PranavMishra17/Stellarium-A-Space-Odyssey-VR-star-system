@@ -10,7 +10,7 @@ public class StarField : MonoBehaviour
     private List<StarDataLoader.Star> stars;
     private List<GameObject> starObjects;
 
-    private readonly int starFieldScale = 400;
+    private readonly int starFieldScale = 800;
 
     void Start()
     {
