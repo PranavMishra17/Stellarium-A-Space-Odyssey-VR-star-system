@@ -131,7 +131,7 @@ public class StarDataLoader : MonoBehaviour
         string headerLine = reader.ReadLine(); // Read and discard the header line
 
         int validStarCount = 0;
-        while (reader.Peek() != -1 && validStarCount < 1000)
+        while (reader.Peek() != -1 ) //&& validStarCount < 1000)
         {
             string[] data = reader.ReadLine().Split(',');
 

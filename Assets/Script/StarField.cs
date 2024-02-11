@@ -21,6 +21,9 @@ public class StarField : MonoBehaviour
         stars = starDataLoader.LoadData();
         starObjects = new List<GameObject>();
 
+        float minSize = float.MaxValue;
+        float maxSize = float.MinValue;
+
         if (stars.Count == 0)
         {
             Debug.LogError("No stars were loaded. Ensure the data is correct and the file is in the Resources folder.");
@@ -38,7 +41,7 @@ public class StarField : MonoBehaviour
             Vector3 scaledPosition = star.position * positionScale;
 
             starObject.transform.localPosition = scaledPosition * starFieldScale;
-            starObject.transform.localScale = Vector3.one * Mathf.Lerp(starSizeMin, starSizeMax, star.size);
+            starObject.transform.localScale = Vector3.one * Mathf.Lerp(starSizeMin, starSizeMax, star.absoluteMagnitude);
             starObject.transform.LookAt(transform.position);
             starObject.transform.Rotate(0, 180, 0);
 
@@ -61,13 +64,28 @@ public class StarField : MonoBehaviour
                 Debug.LogError("StarShader not found. Make sure the shader name is correct.");
                 material.color = star.colour;
             }
+
+            //Debug.Log($"Star Size: {star.size}");
+            if (star.absoluteMagnitude < minSize) minSize = star.absoluteMagnitude;
+            if (star.absoluteMagnitude > maxSize) maxSize = star.absoluteMagnitude;
+
             // Uncomment and adjust the following line when the shader is available
             // material.shader = Shader.Find("Unlit/StarShader");
             // Use the color defined in the StarDataLoader
 
             starObjects.Add(starObject);
         }
+        if (starObjects.Count == 0)
+        {
+            Debug.Log("No stars loaded.");
+            return;
+        }
+
+
+        Debug.Log($"Minimum Star Size: {minSize}");
+        Debug.Log($"Maximum Star Size: {maxSize}");
     }
+
 
     private void FixedUpdate()
     {
