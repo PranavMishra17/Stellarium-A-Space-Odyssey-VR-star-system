@@ -7,7 +7,6 @@ public class StarDataLoader : MonoBehaviour
 {
     public class Star
     {
-        // Variables to define the star in the game.
         public float hipparcosNumber;
         public float distanceFromSol;
         public Vector3 position;
@@ -17,7 +16,6 @@ public class StarDataLoader : MonoBehaviour
         public float relativeMagnitude;
         public Vector3 velocity;
 
-        // Constructor for the new dataset
         public Star(float hipparcosNumber, float distanceFromSol, Vector3 position,
                     Color colour, float size, float absoluteMagnitude, float relativeMagnitude, Vector3 velocity)
         {
@@ -30,7 +28,6 @@ public class StarDataLoader : MonoBehaviour
             this.relativeMagnitude = relativeMagnitude;
             this.velocity = velocity;
         }
-
         // Get the starting position shown in the file.
         public Vector3 GetBasePosition()
         {
@@ -121,8 +118,8 @@ public class StarDataLoader : MonoBehaviour
     public List<Star> LoadData()
     {
         List<Star> stars = new List<Star>();
-        const string filename = "athyg"; // Change this to your new dataset file name
-        TextAsset textAsset = Resources.Load(filename) as TextAsset;
+        const string filename = "cleaned_stardata"; // Updated file name
+        TextAsset textAsset = Resources.Load<TextAsset>(filename);
 
         if (textAsset == null)
         {
@@ -131,53 +128,89 @@ public class StarDataLoader : MonoBehaviour
         }
 
         StringReader reader = new StringReader(textAsset.text);
-
-        // Read and discard the header line if it exists
-        string headerLine = reader.ReadLine();
+        string headerLine = reader.ReadLine(); // Read and discard the header line
 
         int validStarCount = 0;
-        while (reader.Peek() != -1 && validStarCount < 100)
+        while (reader.Peek() != -1 && validStarCount < 1000)
         {
             string[] data = reader.ReadLine().Split(',');
 
-            if (data.Length < 31) // Ensure the row has enough columns
+            // Check that we have all needed data
+            if (data.Length < 11)
             {
                 Debug.LogWarning($"Skipping row with insufficient columns: {string.Join(", ", data)}");
                 continue;
             }
 
-            if (!float.TryParse(data[15], out float distanceFromSol) ||
-                !float.TryParse(data[16], out float x0) ||
-                !float.TryParse(data[17], out float y0) ||
-                !float.TryParse(data[18], out float z0) ||
-                !float.TryParse(data[20], out float magnitude))
+            // Parse the necessary data
+            if (!float.TryParse(data[0], out float hip) ||
+                !float.TryParse(data[1], out float dist) ||
+                !float.TryParse(data[2], out float x0) ||
+                !float.TryParse(data[3], out float y0) ||
+                !float.TryParse(data[4], out float z0) ||
+                !float.TryParse(data[5], out float absMag) ||
+                !float.TryParse(data[6], out float mag) ||
+                !float.TryParse(data[7], out float vx) ||
+                !float.TryParse(data[8], out float vy) ||
+                !float.TryParse(data[9], out float vz))
             {
                 Debug.LogWarning($"Skipping row with invalid numeric data: {string.Join(", ", data)}");
                 continue;
             }
 
-            // Additional columns for the new dataset
-            Star star = new Star(0, distanceFromSol, new Vector3(x0, y0, z0), Color.white, 1f, 0f, 0f, Vector3.zero);
+            Color starColor = Color.white;
 
-            if (data[30].Length > 0)
+            if (!string.IsNullOrEmpty(data[10]) && data[10].Length > 0)
             {
-                star.colour = star.SetColour((byte)data[30][0], 0);
+                starColor = SetColour(data[10][0], data[10].Length > 1 ? data[10][1] : '0');
+
             }
             else
             {
-                Debug.LogWarning($"Skipping row with empty spectral type: {string.Join(", ", data)}");
+                Debug.LogWarning($"Skipping row with missing or invalid spectral type: {string.Join(", ", data)}");
                 continue;
             }
 
-            star.size = star.SetSize((short)magnitude);
-            star.CalculateAbsoluteMagnitude(distanceFromSol, magnitude);
-
+            // Create a new Star object and add it to the list
+            Star star = new Star(hip, dist, new Vector3(x0, y0, z0), starColor, 1f, absMag, mag, new Vector3(vx, vy, vz));
             stars.Add(star);
+
             validStarCount++;
+
+            // Debug the details for the first five stars
+            if (validStarCount <= 5)
+            {
+                Debug.Log($"Star {validStarCount}: HipparcosNumber={star.hipparcosNumber}, " +
+                          $"DistanceFromSol={star.distanceFromSol}, Position={star.position}, " +
+                          $"Colour={star.colour}, Size={star.size}, AbsoluteMagnitude={star.absoluteMagnitude}, " +
+                          $"RelativeMagnitude={star.relativeMagnitude}, Velocity={star.velocity}");
+            }
         }
 
         return stars;
     }
 
+    private Color SetColour(char spectralType, char specIndex)
+    {
+        switch (spectralType)
+        {
+            case 'O':
+                return new Color(0.5f, 0.5f, 1.0f); // Blue
+            case 'B':
+                return new Color(0.7f, 0.7f, 1.0f); // Blue-white
+            case 'A':
+                return Color.white; // White
+            case 'F':
+                return new Color(1.0f, 1.0f, 0.8f); // White (slightly yellowish)
+            case 'G':
+                return new Color(1.0f, 1.0f, 0.5f); // Yellow-white
+            case 'K':
+                return new Color(1.0f, 0.8f, 0.5f); // Orange
+            case 'M':
+                return new Color(1.0f, 0.5f, 0.5f); // Red
+            default:
+                return Color.white; // Default color
+        }
+    }
 
 }
