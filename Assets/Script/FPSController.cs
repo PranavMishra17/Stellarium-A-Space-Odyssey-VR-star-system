@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
+using TMPro;
+using System.Collections;
 
 public class FPSController : MonoBehaviour
 {
@@ -8,8 +10,26 @@ public class FPSController : MonoBehaviour
     public float movearoundspeed = 30f;
     public float speedUpMultiplier = 2f;
 
-    private bool isFreeToMove = true;
+    public bool isFreeToMove = false;
     public float verticalSpeed = 10f;
+
+    public TextMeshProUGUI promptText;
+
+    private float inactivityTimer = 0f;
+    public float inactivityThreshold = 4f; // Seconds until the prompt fades in
+    private bool promptVisible = false;
+    private Coroutine fadeCoroutine;
+
+    public AudioSource asss;
+    public AudioClip entrysf;
+    public AudioClip mouseClick;
+
+
+    private void Start()
+    {
+        isFreeToMove = false;
+        asss = GetComponent<AudioSource>();
+    }
 
 
     private void Update()
@@ -53,7 +73,39 @@ public class FPSController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.P))
         {
             ToggleMovement();
+            asss.PlayOneShot(entrysf);
         }
+
+        // Check for any movement key press
+        if (Input.anyKeyDown)
+        {
+            // Reset the inactivity timer and hide the prompt if it's currently visible
+            if (inactivityTimer > 0 || promptVisible)
+            {
+                inactivityTimer = 0;
+                if (promptVisible)
+                {
+                    promptVisible = false;
+                    if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+                    fadeCoroutine = StartCoroutine(FadeText(promptText, 1, 0, 0.5f)); // Fade out duration of 0.5 seconds
+                }
+            }
+        }
+        else if (isFreeToMove)
+        {
+            // Increment the inactivity timer
+            inactivityTimer += Time.deltaTime;
+
+            // If the timer exceeds the threshold and the prompt is not already visible, fade it in
+            if (inactivityTimer >= inactivityThreshold && !promptVisible)
+            {
+                promptVisible = true;
+                if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+                fadeCoroutine = StartCoroutine(FadeText(promptText, 0, 1, 0.5f)); // Fade in duration of 0.5 seconds
+                inactivityThreshold = 8f;
+            }
+        }
+
     }
     private bool ASWD_down()
     {
@@ -262,5 +314,21 @@ public class FPSController : MonoBehaviour
         isFreeToMove = !isFreeToMove;
         Cursor.lockState = isFreeToMove ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !isFreeToMove;
+    }
+
+    IEnumerator FadeText(TextMeshProUGUI textComponent, float startAlpha, float endAlpha, float duration)
+    {
+        float startTime = Time.time;
+        Color startColor = textComponent.color;
+        Color endColor = new Color(startColor.r, startColor.g, startColor.b, endAlpha);
+
+        while (Time.time < startTime + duration)
+        {
+            float t = (Time.time - startTime) / duration;
+            textComponent.color = Color.Lerp(startColor, endColor, t);
+            yield return null;
+        }
+
+        textComponent.color = endColor; // Ensure the target alpha is set
     }
 }
