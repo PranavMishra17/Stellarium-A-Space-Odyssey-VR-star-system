@@ -73,7 +73,7 @@ public class FPSController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.P))
         {
             ToggleMovement();
-            asss.PlayOneShot(entrysf);
+            asss.PlayOneShot(entrysf, 0.25f);
         }
 
         // Check for any movement key press

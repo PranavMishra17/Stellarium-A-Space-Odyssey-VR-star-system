@@ -34,7 +34,7 @@ public class PanelAnim : MonoBehaviour
             StartCoroutine(FadeOutUI());
             canContinue = false; // Prevent this block from running again
             fps.isFreeToMove = true;
-            asss.PlayOneShot(entrysf);
+            asss.PlayOneShot(entrysf, 0.2f);
         }
     }
 
