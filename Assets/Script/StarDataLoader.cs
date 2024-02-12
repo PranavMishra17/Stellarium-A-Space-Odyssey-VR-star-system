@@ -28,6 +28,7 @@ public class StarDataLoader : MonoBehaviour
             this.relativeMagnitude = relativeMagnitude;
             this.velocity = velocity;
         }
+
         // Get the starting position shown in the file.
         public Vector3 GetBasePosition()
         {

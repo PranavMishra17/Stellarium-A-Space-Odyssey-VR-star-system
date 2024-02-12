@@ -15,7 +15,9 @@ public class StarField : MonoBehaviour
     private readonly int starFieldScale = 800; // Adjust this value as needed for your scene
 
     private Dictionary<int, GameObject> starMap; // Maps Hipparcos number to GameObject
+    private List<Constellation> constellationstxt = new List<Constellation>();
 
+    
     // Define constellations using Hipparcos numbers (simplified for brevity)
     private readonly List<(int[], int[])> constellations = new List<(int[], int[])>
     {
@@ -95,12 +97,14 @@ public class StarField : MonoBehaviour
     };
     private Dictionary<int, GameObject> constellationLines = new Dictionary<int, GameObject>();
 
+     
 
     public float starlineWidth = 1f;
 
     void Start()
     {
         starMap = new Dictionary<int, GameObject>();
+        LoadConstellations();
 
         // Read in the star data using the StarDataLoader.
         StarDataLoader starDataLoader = new StarDataLoader();
@@ -214,12 +218,17 @@ public class StarField : MonoBehaviour
 
     void Update()
     {
+        ToggleConstellationsWithKeys();
+    }
+
+    void ToggleConstellationsWithKeys()
+    {
         // Numeric key toggling for direct constellation access
         for (int i = 0; i < 10; i++)
         {
             if (Input.GetKeyDown(KeyCode.Alpha0 + i) || Input.GetKeyDown(KeyCode.Keypad0 + i))
             {
-                ToggleConstellation(i - 1); // Adjust based on how you're indexing constellations
+                ToggleConstellation(i - 1); // Adjust based on your constellation indexing
             }
         }
 
@@ -239,54 +248,60 @@ public class StarField : MonoBehaviour
 
     void ToggleConstellation(int index, bool sequentialToggle = false)
     {
-        if (index < 0 || index >= constellations.Count) return;
+        if (index < 0 || index >= constellationstxt.Count) return;
 
-        // If toggling sequentially, first clear the currently displayed constellation
         if (sequentialToggle && currentConstellationIndex != -1 && constellationLines.ContainsKey(currentConstellationIndex))
         {
             Destroy(constellationLines[currentConstellationIndex]);
             constellationLines.Remove(currentConstellationIndex);
         }
 
-        // If the same constellation is selected (or in sequential toggle mode), just update the current index without redrawing
         if (constellationLines.ContainsKey(index))
         {
-            if (!sequentialToggle) // For direct access toggles, remove and reset the current constellation
+            if (!sequentialToggle)
             {
                 Destroy(constellationLines[index]);
                 constellationLines.Remove(index);
-                currentConstellationIndex = -1; // Reset the index as no constellation is now displayed
+                currentConstellationIndex = -1;
             }
         }
         else
         {
-            if (currentConstellationIndex != index || sequentialToggle) // Avoid redrawing the same constellation if already displayed
+            if (currentConstellationIndex != index || sequentialToggle)
             {
-                // Show the new constellation
-                var constellation = constellations[index];
-                DrawConstellation(index, constellation.Item1, constellation.Item2);
-                currentConstellationIndex = index; // Update the currently displayed constellation index
+                DrawConstellation(index); // Adapted to use the new index
+                currentConstellationIndex = index;
             }
         }
     }
 
-    void DrawConstellation(int index, int[] stars, int[] lines)
+
+    void DrawConstellation(int index)
     {
-        Debug.Log("Constellation_ " + index);
-        GameObject constellationHolder = new GameObject($"Constellation_{index}");
+        if (index < 0 || index >= constellationstxt.Count) return;
+
+        Constellation constellation = constellationstxt[index];
+        Debug.Log($"Drawing Constellation: {constellation.Name}");
+
+        GameObject constellationHolder = new GameObject($"Constellation_{constellation.Name}");
         constellationLines[index] = constellationHolder;
 
-        for (int i = 0; i < lines.Length; i += 2)
+        for (int i = 0; i < constellation.StarPairs.Length; i += 2)
         {
-            int starIndex1 = lines[i];
-            int starIndex2 = lines[i + 1];
+            int starIndex1 = constellation.StarPairs[i];
+            int starIndex2 = constellation.StarPairs[i + 1];
 
             if (starMap.ContainsKey(starIndex1) && starMap.ContainsKey(starIndex2))
             {
                 DrawLineBetweenStars(starMap[starIndex1], starMap[starIndex2], constellationHolder);
             }
+            else
+            {
+                Debug.LogWarning($"Stars {starIndex1} or {starIndex2} not found in starMap.");
+            }
         }
     }
+
 
     void DrawLineBetweenStars(GameObject star1, GameObject star2, GameObject parent)
     {
@@ -301,5 +316,50 @@ public class StarField : MonoBehaviour
         lineRenderer.startWidth = lineRenderer.endWidth = starlineWidth; // Adjust line width as needed
     }
 
+    class Constellation
+    {
+        public string Name;
+        public int PairCount;
+        public int[] StarPairs;
+
+        public Constellation(string name, int pairCount, int[] starPairs)
+        {
+            Name = name;
+            PairCount = pairCount;
+            StarPairs = starPairs;
+        }
+
+
+    }
+
+    void LoadConstellations()
+    {
+        TextAsset constellationData = Resources.Load<TextAsset>("constellationship");
+        string[] lines = constellationData.text.Split('\n');
+
+        foreach (string line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            string[] parts = line.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 3) continue; // Skip invalid lines
+
+            string constellationName = parts[0];
+            if (!int.TryParse(parts[1], out int pairCount)) continue;
+
+            List<int> starPairs = new List<int>();
+            for (int i = 2; i < parts.Length; i++)
+            {
+                if (int.TryParse(parts[i], out int hipNumber))
+                {
+                    starPairs.Add(hipNumber);
+                }
+            }
+
+            constellationstxt.Add(new Constellation(constellationName, pairCount, starPairs.ToArray()));
+        }
+
+        // Example: Now constellations list is filled, process as needed
+        Debug.Log($"Loaded {constellations.Count} constellations.");
+    }
 
 }
