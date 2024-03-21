@@ -15,6 +15,7 @@ public class StarDataLoader : MonoBehaviour
         public float absoluteMagnitude;
         public float relativeMagnitude;
         public Vector3 velocity;
+        public Vector3 originalPosition;
 
         public Star(float hipparcosNumber, float distanceFromSol, Vector3 position,
                     Color colour, float size, float absoluteMagnitude, float relativeMagnitude, Vector3 velocity)
@@ -27,6 +28,7 @@ public class StarDataLoader : MonoBehaviour
             this.absoluteMagnitude = absoluteMagnitude;
             this.relativeMagnitude = relativeMagnitude;
             this.velocity = velocity;
+            this.originalPosition = position;
         }
 
         // Get the starting position shown in the file.
@@ -116,7 +118,7 @@ public class StarDataLoader : MonoBehaviour
         }
     }
 
-    public List<Star> LoadData()
+    public List<Star> LoadData(int numberOfStarsToLoad)
     {
         List<Star> stars = new List<Star>();
         const string filename = "cleaned_stardata"; // Updated file name
@@ -132,7 +134,7 @@ public class StarDataLoader : MonoBehaviour
         string headerLine = reader.ReadLine(); // Read and discard the header line
 
         int validStarCount = 0;
-        while (reader.Peek() != -1 ) //&& validStarCount < 1000)
+        while (reader.Peek() != -1 && (numberOfStarsToLoad < 0 || validStarCount < numberOfStarsToLoad))
         {
             string[] data = reader.ReadLine().Split(',');
 

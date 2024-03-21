@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 public class StarField : MonoBehaviour
 {
@@ -17,89 +19,15 @@ public class StarField : MonoBehaviour
     private Dictionary<int, GameObject> starMap; // Maps Hipparcos number to GameObject
     private List<Constellation> constellationstxt = new List<Constellation>();
 
-    
-    // Define constellations using Hipparcos numbers (simplified for brevity)
-    private readonly List<(int[], int[])> constellations = new List<(int[], int[])>
-    {
-        // Dummy constellation
-                (new int[] { 1, 2, 3, 4, 5, 6},
-         new int[] { 1,3, 5, 6 }),
-
-                        // Dummy constellation
-                (new int[] { 11, 20, 32, 45, 54, 61},
-         new int[] { 11,32, 54, 61 }),
-                        (new int[] { 98036, 97649, 97649, 97278, 97649, 95501, 95501, 97804, 99473, 97804, 95501, 93747, 93747, 93244, 95501, 93805 },
-         new int[] { 98036, 97649, 97649, 97278, 97649, 95501, 95501, 97804, 99473, 97804, 95501, 93747, 93747, 93244, 95501, 93805 }),
-
-                // Aql - Aquila
-        (new int[] { 98036, 97649, 97649, 97278, 97649, 95501, 95501, 97804, 99473, 97804, 95501, 93747, 93747, 93244, 95501, 93805 },
-         new int[] { 98036, 97649, 97649, 97278, 97649, 95501, 95501, 97804, 99473, 97804, 95501, 93747, 93747, 93244, 95501, 93805 }),
-
-        // And - Andromeda
-        (new int[] { 677, 3092, 3092, 5447, 9640, 5447, 5447, 4436, 4436, 3881 },
-         new int[] { 677, 3092, 3092, 5447, 9640, 5447, 5447, 4436, 4436, 3881 }),
-
-            // Orion Constellation Example
-            (new int[] { 1948, 1903, 1852, 2004, 1713, 2061, 1790, 1907, 2124,
-                 2199, 2135, 2047, 2159, 1543, 1544, 1570, 1552, 1567 },
-             new int[] { 1713, 2004, 1713, 1852, 1852, 1790, 1852, 1903, 1903, 1948,
-                 1948, 2061, 1948, 2004, 1790, 1907, 1907, 2061, 2061, 2124,
-                 2124, 2199, 2199, 2135, 2199, 2159, 2159, 2047, 1790, 1543,
-                 1543, 1544, 1544, 1570, 1543, 1552, 1552, 1567, 2135, 2047 }),
-
-            // Monceros
-            (new int[] { 2970, 3188, 2714, 2356, 2227, 2506, 2298, 2385, 2456, 2479 },
-            new int[] { 2970, 3188, 3188, 2714, 2714, 2356, 2356, 2227, 2714, 2506,
-                 2506, 2298, 2298, 2385, 2385, 2456, 2479, 2506, 2479, 2385 }),
-
-            // Gemini
-            (new int[] { 2890, 2891, 2990, 2421, 2777, 2473, 2650, 2216, 2895,
-                 2343, 2484, 2286, 2134, 2763, 2697, 2540, 2821, 2905, 2985},
-            new int[] { 2890, 2697, 2990, 2905, 2697, 2473, 2905, 2777, 2777, 2650,
-                 2650, 2421, 2473, 2286, 2286, 2216, 2473, 2343, 2216, 2134,
-                 2763, 2484, 2763, 2777, 2697, 2540, 2697, 2821, 2821, 2905, 2905, 2985 }),
-
-            // Cancer
-            (new int[] {3475, 3449, 3461, 3572, 3249},
-             new int[] {3475, 3449, 3449, 3461, 3461, 3572, 3461, 3249}),
-
-            // Leo
-            (new int[] { 3982, 4534, 4057, 4357, 3873, 4031, 4359, 3975, 4399, 4386, 3905, 3773, 3731 },
-            new int[] { 4534, 4357, 4534, 4359, 4357, 4359, 4357, 4057, 4057, 4031,
-                 4057, 3975, 3975, 3982, 3975, 4359, 4359, 4399, 4399, 4386,
-                 4031, 3905, 3905, 3873, 3873, 3975, 3873, 3773, 3773, 3731, 3731, 3905 }),
-
-            // Leo Minor
-            (new int[] { 3800, 3974, 4100, 4247, 4090 },
-            new int[] { 3800, 3974, 3974, 4100, 4100, 4247, 4247, 4090, 4090, 3974 }),
-
-            // Lynx
-            (new int[] { 3705, 3690, 3612, 3579, 3275, 2818, 2560, 2238 },
-            new int[] { 3705, 3690, 3690, 3612, 3612, 3579, 3579, 3275, 3275, 2818,
-                 2818, 2560, 2560, 2238 }),
-
-            // Ursa Major
-            (new int[] { 3569, 3594, 3775, 3888, 3323, 3757, 4301, 4295, 4554, 4660,
-                 4905, 5054, 5191, 4518, 4335, 4069, 4033, 4377, 4375 },
-            new int[] { 3569, 3594, 3594, 3775, 3775, 3888, 3888, 3323, 3323, 3757,
-                 3757, 3888, 3757, 4301, 4301, 4295, 4295, 3888, 4295, 4554,
-                 4554, 4660, 4660, 4301, 4660, 4905, 4905, 5054, 5054, 5191,
-                 4554, 4518, 4518, 4335, 4335, 4069, 4069, 4033, 4518, 4377, 4377, 4375 }),
-
-            // Example for Ursa Major
-            (new int[] { 54061, 53910, 58001, 59774, 62956, 65378, 67301 },
-             new int[] { 54061, 53910, 53910, 58001, 58001, 59774, 59774, 62956, 62956, 65378, 65378, 67301 }),
-
-            // Example for Cassiopeia
-            (new int[] { 3179, 746, 4427, 2646, 2550 },
-             new int[] { 3179, 746, 746, 4427, 4427, 2646, 2646, 2550 })
-        // Add other constellations here
-    };
     private Dictionary<int, GameObject> constellationLines = new Dictionary<int, GameObject>();
 
      
 
     public float starlineWidth = 1f;
+
+    public int numberOfStarsToLoad = -1; // Default to -1, indicating "load all"
+    public int speedScale = 100000;
+
 
     void Start()
     {
@@ -108,7 +36,7 @@ public class StarField : MonoBehaviour
 
         // Read in the star data using the StarDataLoader.
         StarDataLoader starDataLoader = new StarDataLoader();
-        stars = starDataLoader.LoadData();
+        stars = starDataLoader.LoadData(numberOfStarsToLoad);
         starObjects = new List<GameObject>();
 
         float minSize = float.MaxValue;
@@ -156,8 +84,8 @@ public class StarField : MonoBehaviour
             }
 
             //Debug.Log($"Star Size: {star.size}");
-            if (star.absoluteMagnitude < minSize) minSize = star.absoluteMagnitude;
-            if (star.absoluteMagnitude > maxSize) maxSize = star.absoluteMagnitude;
+            if (star.position.x < minSize) minSize = star.position.x;
+            if (star.position.x > maxSize) maxSize = star.position.x;
 
             // Uncomment and adjust the following line when the shader is available
             // material.shader = Shader.Find("Unlit/StarShader");
@@ -195,6 +123,28 @@ public class StarField : MonoBehaviour
             Camera.main.transform.RotateAround(Camera.main.transform.position, Camera.main.transform.right, Input.GetAxis("Mouse Y") * Time.deltaTime * 200);
             Camera.main.transform.RotateAround(Camera.main.transform.position, Vector3.up, -Input.GetAxis("Mouse X") * Time.deltaTime * 200);
         }
+
+        if (isMoving)
+        {
+            // Calculate the actual speed scale based on the slider's value (0 to 1 range) scaling up to 5
+            float actualSpeedScale = timeSpeed * speedScale; // timeSpeed is the value from the slider
+
+            foreach (var star in stars)
+            {
+                if (starMap.TryGetValue((int)star.hipparcosNumber, out GameObject starObject))
+                {
+                    // Scale the velocity by the actual speed scale and deltaTime for frame-independent movement
+                    Vector3 movementDelta = star.velocity * actualSpeedScale * Time.deltaTime;
+                    starObject.transform.position += movementDelta;
+
+                    // Optionally, debug log the movement of the first few stars
+                    if (stars.IndexOf(star) < 5) // Adjust as needed
+                    {
+                        Debug.Log($"Star {star.hipparcosNumber} moved to {starObject.transform.position} with velocity {star.velocity.magnitude} and slider speed: {timeSpeed} with actual speed {movementDelta.magnitude}");
+                    }
+                }
+            }
+        }
     }
 
     private void OnValidate()
@@ -214,6 +164,10 @@ public class StarField : MonoBehaviour
 
 
     /////////////////////////////////////////////////////- Constellations below -//////////////////////////////////////////////////////////////////
+    ///
+
+
+
     private int currentConstellationIndex = -1; // Starts with no constellation displayed
 
     void Update()
@@ -236,12 +190,12 @@ public class StarField : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
             int newIndex = currentConstellationIndex - 1;
-            if (newIndex < 0) newIndex = constellations.Count - 1; // Loop back to the last constellation
+            if (newIndex < 0) newIndex = constellationstxt.Count - 1; // Loop back to the last constellation
             ToggleConstellation(newIndex, true);
         }
         else if (Input.GetKeyDown(KeyCode.RightArrow))
         {
-            int newIndex = (currentConstellationIndex + 1) % constellations.Count; // Loop to the first constellation
+            int newIndex = (currentConstellationIndex + 1) % constellationstxt.Count; // Loop to the first constellation
             ToggleConstellation(newIndex, true);
         }
     }
@@ -256,6 +210,18 @@ public class StarField : MonoBehaviour
             constellationLines.Remove(currentConstellationIndex);
         }
 
+        // Check if we're toggling within the same constellation and need to exit
+        if (sequentialToggle && index == currentConstellationIndex) {
+            currentConstellationIndex = -1;
+            return;
+        }
+       
+
+        // Attempt to draw the new constellation
+        DrawConstellation(index);
+        currentConstellationIndex = index;
+
+        /*
         if (constellationLines.ContainsKey(index))
         {
             if (!sequentialToggle)
@@ -273,8 +239,8 @@ public class StarField : MonoBehaviour
                 currentConstellationIndex = index;
             }
         }
+        */
     }
-
 
     void DrawConstellation(int index)
     {
@@ -283,8 +249,8 @@ public class StarField : MonoBehaviour
         Constellation constellation = constellationstxt[index];
         Debug.Log($"Drawing Constellation: {constellation.Name}");
 
+        bool allLinesDrawn = true;
         GameObject constellationHolder = new GameObject($"Constellation_{constellation.Name}");
-        constellationLines[index] = constellationHolder;
 
         for (int i = 0; i < constellation.StarPairs.Length; i += 2)
         {
@@ -297,8 +263,25 @@ public class StarField : MonoBehaviour
             }
             else
             {
+                allLinesDrawn = false;
                 Debug.LogWarning($"Stars {starIndex1} or {starIndex2} not found in starMap.");
+                break; // Early exit on missing stars
             }
+        }
+
+        if (!allLinesDrawn)
+        {
+            DestroyImmediate(constellationHolder); // Cleanup on incomplete constellation
+            int nextIndex = (index + 1) % constellationstxt.Count;
+            if (nextIndex != currentConstellationIndex)
+            {
+                ToggleConstellation(nextIndex, true); // Try next constellation
+            }
+        }
+        else
+        {
+            constellationLines[index] = constellationHolder; // Successfully drawn, track the GameObject
+            currentConstellationIndex = index; // Update current index
         }
     }
 
@@ -328,8 +311,6 @@ public class StarField : MonoBehaviour
             PairCount = pairCount;
             StarPairs = starPairs;
         }
-
-
     }
 
     void LoadConstellations()
@@ -359,7 +340,44 @@ public class StarField : MonoBehaviour
         }
 
         // Example: Now constellations list is filled, process as needed
-        Debug.Log($"Loaded {constellations.Count} constellations.");
+        Debug.Log($"Loaded {constellationstxt.Count} constellations.");
     }
+
+    /// <summary>
+    /// //////////////////////////////////////////////   UI Elements - Speed, reset //////////////////////////////////////////////////////////
+    /// </summary>
+
+    public Button moveButton;
+    public Button resetButton;
+    public Slider speedSlider;
+    public Text playtext;
+
+    private bool isMoving = false;
+    private float timeSpeed = 1.0f;
+
+    public void MoveStars()
+    {
+        if (isMoving) { isMoving = false; playtext.text = "Play"; }
+        else { isMoving = true; playtext.text = "Pause"; }
+
+    }
+
+    public void ResetStars()
+    {
+        foreach (var star in stars)
+        {
+            star.position = star.originalPosition; // Reset to original position
+            GameObject starObject = starMap[(int)star.hipparcosNumber];
+            starObject.transform.position = star.originalPosition * positionScale * starFieldScale;
+        }
+        isMoving = false; // Stop movement
+        playtext.text = "Play";
+    }
+
+    public void AdjustTimeSpeed()
+    {
+        timeSpeed = speedSlider.value;
+    }
+
 
 }
