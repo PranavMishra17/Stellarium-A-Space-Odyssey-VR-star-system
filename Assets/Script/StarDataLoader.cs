@@ -179,17 +179,6 @@ public class StarDataLoader : MonoBehaviour
             stars.Add(star);
 
             validStarCount++;
-
-            // Debug the details for the first five stars 
-            /*
-            if (validStarCount <= 5)
-            {
-                Debug.Log($"Star {validStarCount}: HipparcosNumber={star.hipparcosNumber}, " +
-                          $"DistanceFromSol={star.distanceFromSol}, Position={star.position}, " +
-                          $"Colour={star.colour}, Size={star.size}, AbsoluteMagnitude={star.absoluteMagnitude}, " +
-                          $"RelativeMagnitude={star.relativeMagnitude}, Velocity={star.velocity}");
-            }
-            */
         }
 
         return stars;

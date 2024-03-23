@@ -216,31 +216,12 @@ public class StarField : MonoBehaviour
             return;
         }
        
-
         // Attempt to draw the new constellation
         DrawConstellation(index);
         currentConstellationIndex = index;
 
-        /*
-        if (constellationLines.ContainsKey(index))
-        {
-            if (!sequentialToggle)
-            {
-                Destroy(constellationLines[index]);
-                constellationLines.Remove(index);
-                currentConstellationIndex = -1;
-            }
-        }
-        else
-        {
-            if (currentConstellationIndex != index || sequentialToggle)
-            {
-                DrawConstellation(index); // Adapted to use the new index
-                currentConstellationIndex = index;
-            }
-        }
-        */
     }
+
 
     void DrawConstellation(int index)
     {
@@ -251,6 +232,7 @@ public class StarField : MonoBehaviour
 
         bool allLinesDrawn = true;
         GameObject constellationHolder = new GameObject($"Constellation_{constellation.Name}");
+
 
         for (int i = 0; i < constellation.StarPairs.Length; i += 2)
         {
@@ -357,10 +339,28 @@ public class StarField : MonoBehaviour
 
     public void MoveStars()
     {
-        if (isMoving) { isMoving = false; playtext.text = "Play"; }
-        else { isMoving = true; playtext.text = "Pause"; }
-
+        if (isMoving)
+        {
+            // If already moving, this acts as a "pause", resetting to original positions (toggle behavior can be adjusted based on requirements)
+            ResetStars();
+            playtext.text = "MOVE";
+        }
+        else
+        {
+            // Calculate new positions for all stars based on the time selected from the slider
+            float time = timeSpeed * 100f; // Assuming timeSpeed is the slider value, scale as needed
+            foreach (var star in stars)
+            {
+                if (starMap.TryGetValue((int)star.hipparcosNumber, out GameObject starObject))
+                {
+                    Vector3 newPosition = star.originalPosition + (star.velocity * time);
+                    starObject.transform.position = newPosition * positionScale * starFieldScale;
+                }
+            }
+        }
+        isMoving = !isMoving;
     }
+
 
     public void ResetStars()
     {
@@ -371,7 +371,7 @@ public class StarField : MonoBehaviour
             starObject.transform.position = star.originalPosition * positionScale * starFieldScale;
         }
         isMoving = false; // Stop movement
-        playtext.text = "Play";
+        playtext.text = "MOVE";
     }
 
     public void AdjustTimeSpeed()
