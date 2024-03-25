@@ -17,6 +17,8 @@ public class StarDataLoader : MonoBehaviour
         public Vector3 velocity;
         public Vector3 originalPosition;
 
+        public Vector3 lastPosition;
+
         public Star(float hipparcosNumber, float distanceFromSol, Vector3 position,
                     Color colour, float size, float absoluteMagnitude, float relativeMagnitude, Vector3 velocity)
         {
@@ -29,6 +31,7 @@ public class StarDataLoader : MonoBehaviour
             this.relativeMagnitude = relativeMagnitude;
             this.velocity = velocity;
             this.originalPosition = position;
+            this.lastPosition = position;
         }
 
         // Get the starting position shown in the file.
@@ -44,7 +47,7 @@ public class StarDataLoader : MonoBehaviour
             {
                 return new Color(r / 255f, g / 255f, b / 255f);
             }
-            // OBAFGKM colours from: https://arxiv.org/pdf/2101.06254.pdf
+
             Color[] col = new Color[8];
             col[0] = IntColour(0x5c, 0x7c, 0xff); // O1
             col[1] = IntColour(0x5d, 0x7e, 0xff); // B0.5
@@ -104,10 +107,6 @@ public class StarDataLoader : MonoBehaviour
 
         public void CalculateAbsoluteMagnitude(float distanceFromSol, float relativeMagnitude)
         {
-            // Implement your absolute magnitude calculation logic based on distanceFromSol and relativeMagnitude
-            // For example, a simplistic calculation:
-            // Assuming you have a formula like AbsoluteMagnitude = ApparentMagnitude - 5 * log10(Distance / 10 parsecs)
-            // You can adjust this formula based on your actual requirements.
             absoluteMagnitude = relativeMagnitude - 5 * Mathf.Log10(distanceFromSol / 10f);
         }
 
@@ -138,10 +137,10 @@ public class StarDataLoader : MonoBehaviour
         {
             string[] data = reader.ReadLine().Split(',');
 
-            // Check that we have all needed data
-            if (data.Length < 11)
+            // Check that we have essential data
+            if (data.Length < 8)
             {
-                Debug.LogWarning($"Skipping row with insufficient columns: {string.Join(", ", data)}");
+                Debug.LogWarning($"Skipping row with insufficient essential columns: {string.Join(", ", data)}");
                 continue;
             }
 
@@ -151,28 +150,18 @@ public class StarDataLoader : MonoBehaviour
                 !float.TryParse(data[2], out float x0) ||
                 !float.TryParse(data[3], out float y0) ||
                 !float.TryParse(data[4], out float z0) ||
-                !float.TryParse(data[5], out float absMag) ||
-                !float.TryParse(data[6], out float mag) ||
                 !float.TryParse(data[7], out float vx) ||
                 !float.TryParse(data[8], out float vy) ||
                 !float.TryParse(data[9], out float vz))
             {
-                Debug.LogWarning($"Skipping row with invalid numeric data: {string.Join(", ", data)}");
+                Debug.LogWarning($"Skipping row with invalid essential numeric data: {string.Join(", ", data)}");
                 continue;
             }
 
-            Color starColor = Color.white;
-
-            if (!string.IsNullOrEmpty(data[10]) && data[10].Length > 0)
-            {
-                starColor = SetColour(data[10][0], data[10].Length > 1 ? data[10][1] : '0');
-
-            }
-            else
-            {
-                Debug.LogWarning($"Skipping row with missing or invalid spectral type: {string.Join(", ", data)}");
-                continue;
-            }
+            // Default values for missing data
+            float absMag = data.Length > 5 && float.TryParse(data[5], out float parsedAbsMag) ? parsedAbsMag : 1f; // Default or previous star's absMag
+            float mag = data.Length > 6 && float.TryParse(data[6], out float parsedMag) ? parsedMag : 1f; // Default or previous star's mag
+            Color starColor = data.Length > 10 && !string.IsNullOrEmpty(data[10]) ? SetColour(data[10][0], data[10].Length > 1 ? data[10][1] : '0') : Color.white; // Default to white
 
             // Create a new Star object and add it to the list
             Star star = new Star(hip, dist, new Vector3(x0, y0, z0), starColor, 1f, absMag, mag, new Vector3(vx, vy, vz));
@@ -183,6 +172,15 @@ public class StarDataLoader : MonoBehaviour
 
         return stars;
     }
+
+    private Vector3 AdjustPosition(Vector3 originalPosition, float distanceFromSol)
+    {
+        // Convert parsecs to feet (for CAVE2 scale) and adjust position if needed
+        Vector3 adjustedPosition = originalPosition * 3.28084f; // 1 parsec to feet conversion
+        // Adjustments based on your scene setup and requirements here...
+        return adjustedPosition;
+    }
+
 
     private Color SetColour(char spectralType, char specIndex)
     {

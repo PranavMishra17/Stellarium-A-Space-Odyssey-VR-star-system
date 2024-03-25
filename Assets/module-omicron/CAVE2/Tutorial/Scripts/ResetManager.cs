@@ -37,6 +37,8 @@ public class ResetManager : MonoBehaviour {
     public PhysicsButton button;
     bool resetPressed;
 
+    public StarField starField;
+
 	// Use this for initialization
 	void Start () {
 	
