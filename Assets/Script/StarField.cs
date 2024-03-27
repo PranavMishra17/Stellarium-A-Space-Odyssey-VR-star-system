@@ -18,6 +18,7 @@ public class StarField : MonoBehaviour
 
     // New field to hold loaded star data from JSON
     private StarGameObjectInfoList loadedData;
+    private List<GameObject> constellationLineObjects = new List<GameObject>();
 
     private readonly int starFieldScale = 800; // Adjust this value as needed for your scene
 
@@ -34,9 +35,13 @@ public class StarField : MonoBehaviour
     public int speedScale = 100000;
 
     public Material sharedMaterial;
+    public Material focusedConstellationMaterial;
 
     public GameObject starQuad;
 
+    public GameObject cameraCtrl;
+
+    private bool starParsec = true;
     public class StarInfoWrapper
     {
         public List<StarGameObjectInfo> stars;
@@ -52,7 +57,8 @@ public class StarField : MonoBehaviour
     [System.Serializable]
     public class StarGameObjectInfo
     {
-        public float[] position = new float[3];
+        public float[] position = new float[3]; // Position in parsecs
+        public float[] positionInFeet = new float[3]; // Position in feet
         public float[] rotation = new float[4]; // Quaternion rotation
         public float hipparcosNumber; // Link to the Star data
         public Color starcolor;
@@ -64,13 +70,19 @@ public class StarField : MonoBehaviour
         public float absoluteMagnitude;
         public float relativeMagnitude;
 
-        //public StarGameObjectInfo() { }
 
         public StarGameObjectInfo(GameObject go, float hip, Color colour, Vector3 velocity, float absMag, float relMag)
         {
+            // Position in parsecs
             position[0] = go.transform.position.x;
             position[1] = go.transform.position.y;
             position[2] = go.transform.position.z;
+
+            // Convert and store position in feet
+            Vector3 positionFeet = go.transform.position * 3.28084f; // 1 parsec = 3.28084 feet
+            positionInFeet[0] = positionFeet.x;
+            positionInFeet[1] = positionFeet.y;
+            positionInFeet[2] = positionFeet.z;
 
             Quaternion rot = go.transform.rotation;
             rotation[0] = rot.x;
@@ -90,6 +102,7 @@ public class StarField : MonoBehaviour
     }
 
 
+
     void Start()
     {
         starMap = new Dictionary<int, GameObject>();
@@ -100,7 +113,7 @@ public class StarField : MonoBehaviour
 
         LoadStarsFromJSON();  // load stars from json file in resources
 
-        LoadConstellations();
+        LoadAndDrawConstellations();
     }
 
     private void LoadStarsGO()
@@ -130,7 +143,10 @@ public class StarField : MonoBehaviour
             starObject.transform.parent = transform;
             starObject.name = $"HR {star.hipparcosNumber}";
             Vector3 scaledPosition = star.position * positionScale;
-            starObject.transform.localPosition = scaledPosition * starFieldScale;
+            starObject.transform.localPosition = star.position * positionScale;
+            //starObject.transform.localPosition = scaledPosition * starFieldScale;
+
+
             starObject.transform.localScale = Vector3.one * Mathf.Lerp(starSizeMin, starSizeMax, star.absoluteMagnitude);
             starObject.transform.LookAt(transform.position);
             starObject.transform.Rotate(0, 180, 0);
@@ -160,10 +176,6 @@ public class StarField : MonoBehaviour
             starMap.Add((int)star.hipparcosNumber, starObject);
         }
 
-        if (!alphaCentauriFound)
-        {
-            Debug.LogWarning("Alpha Centauri (Rigil Kentaurus) not found in the dataset.");
-        }
 
         // Debug statements for total stars
         Debug.Log($"Total number of stars loaded: {stars.Count}");
@@ -195,9 +207,17 @@ public class StarField : MonoBehaviour
             starObject.transform.parent = transform;
             starObject.name = $"HR {star.hipparcosNumber}";
             Vector3 scaledPosition = star.position * positionScale;
-            starObject.transform.localPosition = scaledPosition * starFieldScale;
+            starObject.transform.localPosition = scaledPosition;
             starObject.transform.localScale = Vector3.one * Mathf.Lerp(starSizeMin, starSizeMax, star.absoluteMagnitude);
-            starObject.transform.LookAt(transform.position);
+
+            // Calculate the direction vector from the starObject's position to the central y-axis cylinder
+            Vector3 directionToYAxis = Vector3.Normalize(transform.up - starObject.transform.position);
+
+            // Make the starObject look in the direction of the central y-axis cylinder
+            //starObject.transform.LookAt(transform.position + directionToYAxis);
+
+            starObject.transform.LookAt(directionToYAxis);
+
             starObject.transform.Rotate(0, 180, 0);
 
             if (star.hipparcosNumber == 71683)
@@ -323,119 +343,214 @@ public class StarField : MonoBehaviour
 
     private int currentConstellationIndex = -1; // Starts with no constellation displayed
     private GameObject currentConstellationHolder = null;
+    private Coroutine cameraMoveCoroutine = null;
 
     class Constellation
     {
         public string Name;
         public int PairCount;
         public int[] StarPairs;
+        public Vector3 CenterPosition; // Add this line
 
         public Constellation(string name, int pairCount, int[] starPairs)
         {
             Name = name;
             PairCount = pairCount;
             StarPairs = starPairs;
+            CenterPosition = Vector3.zero; // Initialize with zero
         }
     }
+
 
     void Update()
     {
-        ToggleConstellationsWithKeys();
-    }
-
-    void ToggleConstellationsWithKeys()
-    {
-        // Numeric key toggling for direct constellation access
-        for (int i = 0; i < 10; i++)
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha0 + i) || Input.GetKeyDown(KeyCode.Keypad0 + i))
-            {
-                ToggleConstellation(i - 1); // Adjust based on your constellation indexing
-            }
-        }
-
-        // Arrow key toggling for sequential constellation access
         if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
-            int newIndex = currentConstellationIndex - 1;
-            if (newIndex < 0) newIndex = constellationstxt.Count - 1; // Loop back to the last constellation
-            ToggleConstellation(newIndex, true);
+            ToggleConstellation(-1); // Move to the previous constellation
         }
         else if (Input.GetKeyDown(KeyCode.RightArrow))
         {
-            int newIndex = (currentConstellationIndex + 1) % constellationstxt.Count; // Loop to the first constellation
-            ToggleConstellation(newIndex, true);
+            ToggleConstellation(1); // Move to the next constellation
         }
     }
 
-    void ToggleConstellation(int index, bool sequentialToggle = false)
-    {
-        if (index < 0 || index >= constellationstxt.Count) return;
+    private GameObject previouslyFocusedConstellation = null;
 
-        if (sequentialToggle && currentConstellationIndex != -1 && constellationLines.ContainsKey(currentConstellationIndex))
+    void ToggleConstellation(int direction)
+    {
+        if (constellationstxt.Count == 0) return;
+
+        // Reset material of the previously focused constellation
+        if (previouslyFocusedConstellation != null)
         {
-            Destroy(constellationLines[currentConstellationIndex]);
-            constellationLines.Remove(currentConstellationIndex);
+            var lineRenderers = previouslyFocusedConstellation.GetComponentsInChildren<LineRenderer>();
+            foreach (var lr in lineRenderers)
+            {
+                lr.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive")); // Reset to default material
+            }
         }
 
-        // Check if we're toggling within the same constellation and need to exit
-        if (sequentialToggle && index == currentConstellationIndex) {
-            currentConstellationIndex = -1;
-            return;
+        // Update current index based on direction
+        currentConstellationIndex += direction;
+        if (currentConstellationIndex >= constellationstxt.Count) currentConstellationIndex = 0;
+        else if (currentConstellationIndex < 0) currentConstellationIndex = constellationstxt.Count - 1;
+
+        Constellation focusedConstellation = constellationstxt[currentConstellationIndex];
+        GameObject constellationGO = GameObject.Find($"Constellation_{focusedConstellation.Name}");
+
+        if (constellationGO != null)
+        {
+            var lineRenderers = constellationGO.GetComponentsInChildren<LineRenderer>();
+            foreach (var lr in lineRenderers)
+            {
+                lr.material = focusedConstellationMaterial; // Set focused material
+            }
+            previouslyFocusedConstellation = constellationGO; // Update previously focused constellation
+        }
+
+        // Turn camera towards the constellation
+        if (cameraMoveCoroutine != null)
+        {
+            StopCoroutine(cameraMoveCoroutine);
+        }
+        if(focusedConstellation.CenterPosition == Vector3.zero)
+        {
+            ToggleConstellation(direction);
+        }
+        else
+        {
+            cameraMoveCoroutine = StartCoroutine(TurnCameraToConstellation(focusedConstellation.CenterPosition));
+            Debug.Log($"Focused on Constellation: {focusedConstellation.Name}");
         }
        
-        // Attempt to draw the new constellation
-        DrawConstellation(index);
-        currentConstellationIndex = index;
     }
 
-    void DrawConstellation(int index)
+    IEnumerator TurnCameraToConstellation(Vector3 targetPosition)
     {
-        if (index < 0 || index >= constellationstxt.Count) return;
+        float duration = 2.0f; // Duration of the rotation
+        float elapsed = 0.0f;
+        Quaternion startRotation = cameraCtrl.transform.rotation;
+        Quaternion targetRotation = Quaternion.LookRotation(targetPosition - cameraCtrl.transform.position);
 
-        // Destroy the previous constellation GameObject
-        if (currentConstellationHolder != null)
+        while (elapsed < duration)
         {
-            Destroy(currentConstellationHolder);
+            cameraCtrl.transform.rotation = Quaternion.Slerp(startRotation, targetRotation, elapsed / duration);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+    }
+
+
+    private void SwapConstellationMaterials()
+    {
+        if (constellationstxt.Count == 0) return;
+
+        Constellation focusedConstellation = constellationstxt[currentConstellationIndex];
+        GameObject constellationGO = GameObject.Find($"Constellation_{focusedConstellation.Name}");
+
+        Debug.Log($"Focused on Constellation GO: {constellationGO.name}");
+        if (constellationGO != null)
+        {
+            var lineRenderers = constellationGO.GetComponentsInChildren<LineRenderer>();
+            foreach (var lr in lineRenderers)
+            {
+                lr.material = focusedConstellationMaterial; // Set focused material
+            }
+            //previouslyFocusedConstellation = constellationGO; // Update previously focused constellation
         }
 
-        Constellation constellation = constellationstxt[index];
-        Debug.Log($"Drawing Constellation: {constellation.Name}");
+        // Turn camera towards the constellation
+        if (cameraMoveCoroutine != null)
+        {
+            StopCoroutine(cameraMoveCoroutine);
+        }
+        if (focusedConstellation.CenterPosition == Vector3.zero)
+        {
+            //ToggleConstellation(1);
+        }
+        else
+        {
+            cameraMoveCoroutine = StartCoroutine(TurnCameraToConstellation(focusedConstellation.CenterPosition));
+            Debug.Log($"Focused on Constellation: {focusedConstellation.Name}");
+        }
+    }
 
-        currentConstellationHolder = new GameObject($"Constellation_{constellation.Name}");
 
+    public void EraseAndRedrawConstellations()
+    {
+        EraseAllConstellationLines();
+        DrawAllConstellations();
+    }
+
+    private void EraseAllConstellationLines()
+    {
+        // Assuming each constellation's lines are under a parent GameObject named with a specific pattern,
+        // for example, "Constellation_{ConstellationName}"
+        foreach (var constellation in constellationstxt)
+        {
+            GameObject constellationParent = GameObject.Find($"Constellation_{constellation.Name}");
+            if (constellationParent != null)
+            {
+                Destroy(constellationParent);
+            }
+        }
+    }
+
+
+    private void DrawAllConstellations()
+    {
+        foreach (var constellation in constellationstxt)
+        {
+            DrawConstellation(constellation);
+        }
+    }
+
+    private void LoadAndDrawConstellations()
+    {
+        // Assuming LoadConstellations fills `constellations` with data
+        LoadConstellations();
+
+        foreach (var constellation in constellationstxt)
+        {
+            DrawConstellation(constellation);
+        }
+    }
+
+    private void DrawConstellation(Constellation constellation)
+    {
+        GameObject constellationParent = new GameObject($"Constellation_{constellation.Name}");
         for (int i = 0; i < constellation.StarPairs.Length; i += 2)
         {
-            int starIndex1 = constellation.StarPairs[i];
-            int starIndex2 = constellation.StarPairs[i + 1];
+            if (i + 1 >= constellation.StarPairs.Length) break; // Safety check
 
-            if (starMap.TryGetValue(starIndex1, out GameObject star1) && starMap.TryGetValue(starIndex2, out GameObject star2))
+            int hip1 = constellation.StarPairs[i];
+            int hip2 = constellation.StarPairs[i + 1];
+
+            if (starMap.TryGetValue(hip1, out GameObject star1) && starMap.TryGetValue(hip2, out GameObject star2))
             {
-                DrawLineBetweenStars(star1, star2, currentConstellationHolder);
+                GameObject lineObject = DrawLineBetweenStars(star1, star2, constellation.Name);
+                lineObject.transform.parent = constellationParent.transform; // Set parent
             }
             else
             {
-                Debug.LogWarning($"Stars {starIndex1} or {starIndex2} not found in starMap.");
+                Debug.LogWarning($"Constellation {constellation.Name} missing stars: {hip1} or {hip2}");
             }
         }
-
-        Debug.Log($"Constellation '{constellation.Name}' star pairs: {string.Join(", ", constellation.StarPairs)}");
     }
 
 
-
-    void DrawLineBetweenStars(GameObject star1, GameObject star2, GameObject parent)
+    private GameObject DrawLineBetweenStars(GameObject star1, GameObject star2, string constellationName)
     {
-        LineRenderer lineRenderer = new GameObject("Line").AddComponent<LineRenderer>();
-        lineRenderer.transform.parent = parent.transform;
-
-        // Set line renderer properties
-        lineRenderer.positionCount = 2;
-        lineRenderer.SetPosition(0, star1.transform.position);
-        lineRenderer.SetPosition(1, star2.transform.position);
+        LineRenderer lineRenderer = new GameObject($"{constellationName}_Line").AddComponent<LineRenderer>();
+        lineRenderer.useWorldSpace = true;
         lineRenderer.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
-        lineRenderer.startWidth = lineRenderer.endWidth = starlineWidth; // Adjust line width as needed
+        lineRenderer.startWidth = lineRenderer.endWidth = starlineWidth;
+        lineRenderer.positionCount = 2;
+        lineRenderer.SetPositions(new Vector3[] { star1.transform.position, star2.transform.position });
+        return lineRenderer.gameObject; // Return the GameObject
     }
+
+
 
 
     void LoadConstellations()
@@ -462,6 +577,27 @@ public class StarField : MonoBehaviour
             }
 
             constellationstxt.Add(new Constellation(constellationName, pairCount, starPairs.ToArray()));
+
+        }
+
+        // After adding stars to the constellation
+        foreach (var constellation in constellationstxt)
+        {
+            Vector3 totalPosition = Vector3.zero;
+            int starsCount = 0;
+            for (int i = 0; i < constellation.StarPairs.Length; i++)
+            {
+                int hipNumber = constellation.StarPairs[i];
+                if (starMap.TryGetValue(hipNumber, out GameObject starObj))
+                {
+                    totalPosition += starObj.transform.position;
+                    starsCount++;
+                }
+            }
+            if (starsCount > 0)
+            {
+                constellation.CenterPosition = totalPosition / starsCount; // Calculate average position
+            }
         }
 
         // Example: Now constellations list is filled, process as needed
@@ -476,6 +612,9 @@ public class StarField : MonoBehaviour
     public Button resetButton;
     public Slider speedSlider;
     public Text playtext;
+
+    public Text timeElapsedText; // Assign in Unity Inspector
+    private float totalSimulatedYears = 0f; // Total simulated time in year
 
     private bool isMoving = false;
     private float timeSpeed = 1.0f;
@@ -492,23 +631,34 @@ public class StarField : MonoBehaviour
         }
     }
 
-    public void ResetStars()
+    // This function is called whenever stars are moved.
+    public void UpdateTimeElapsed(float timeAdjustment)
     {
-        if (loadedData != null)
-        {
-            StartCoroutine(ResetStarsInBatches());
-        }
-        else
-        {
-            Debug.LogError("Stars data not loaded.");
-        }
-    }
+        // Assuming each move operation in your simulation represents an advancement of time
+        // proportional to the time adjustment factor.
+        float yearsPassed = timeAdjustment; // As timeAdjustment is already in years
+        totalSimulatedYears += yearsPassed;
 
+        // Update the UI text component to display the total simulated time elapsed
+        timeElapsedText.text = $"{totalSimulatedYears:F2}";
+    }
 
     public IEnumerator MoveStarsInBatches()
     {
         int batchSize = 1000; // Adjust based on performance
-        float timeAdjustment = speedSlider.value * speedScale * timeSpeed;
+        float timeAdjustment = 0f;
+
+        if (starParsec)
+        {
+            timeAdjustment = speedSlider.value * speedScale * timeSpeed; 
+        }
+        else
+        {
+            timeAdjustment = speedSlider.value * speedScale * timeSpeed * 3.28084f;
+        }
+
+        // Update the time elapsed before moving stars
+        UpdateTimeElapsed(timeAdjustment);
 
         for (int i = 0; i < loadedData.stars.Count; i += batchSize)
         {
@@ -525,10 +675,23 @@ public class StarField : MonoBehaviour
             }
             yield return null; // Wait for the next frame
         }
-        DrawConstellation(currentConstellationIndex);
+        EraseAndRedrawConstellations();
     }
 
+    public void ResetStars()
+    {
+        if (loadedData != null)
+        {
+            StartCoroutine(ResetStarsInBatches());
 
+            totalSimulatedYears = 0f;
+            UpdateTimeElapsed(0f);
+        }
+        else
+        {
+            Debug.LogError("Stars data not loaded.");
+        }
+    }
 
     public IEnumerator ResetStarsInBatches()
     {
@@ -551,15 +714,85 @@ public class StarField : MonoBehaviour
         }
 
         playtext.text = "MOVE";
-        DrawConstellation(currentConstellationIndex);
+        EraseAndRedrawConstellations();
+        //SwapConstellationMaterials();
     }
-
-
 
     public void AdjustTimeSpeed()
     {
         timeSpeed = speedSlider.value;
     }
 
+
+    public void SwitchUnit()
+    {
+        if (starParsec)
+        {
+            ShiftStarsToFeet(); starParsec = false;
+        }
+        else
+        {
+            //ShiftStarsToParsecs();
+            ResetStars();
+            starParsec = true;
+        }
+    }
+
+
+    public void ShiftStarsToFeet()
+    {
+        if (loadedData == null)
+        {
+            Debug.LogError("Stars data not loaded.");
+            return;
+        }
+
+        StartCoroutine(ShiftStarsPosition(loadedData, true)); // True for shifting to feet
+        playtext.text = "Switch to Parsec";
+    }
+
+    public void ShiftStarsToParsecs()
+    {
+        if (loadedData == null)
+        {
+            Debug.LogError("Stars data not loaded.");
+            return;
+        }
+
+        StartCoroutine(ShiftStarsPosition(loadedData, false)); // False for shifting to parsecs
+        playtext.text = "Switch to Feet";
+    }
+
+    private IEnumerator ShiftStarsPosition(StarGameObjectInfoList data, bool toFeet)
+    {
+        int batchSize = 1000;
+        for (int i = 0; i < data.stars.Count; i += batchSize)
+        {
+            for (int j = i; j < Mathf.Min(i + batchSize, data.stars.Count); j++)
+            {
+                StarGameObjectInfo starInfo = data.stars[j];
+                if (starMap.TryGetValue((int)starInfo.hipparcosNumber, out GameObject starObject))
+                {
+                    Vector3 newPosition;
+                    if (toFeet)
+                    {
+                        // Convert parsec position to feet and update
+                        newPosition = new Vector3(starInfo.position[0], starInfo.position[1], starInfo.position[2]) * 3.28084f;
+                    }
+                    else
+                    {
+                        // Convert feet position back to parsecs
+                        newPosition = new Vector3(starInfo.position[0], starInfo.position[1], starInfo.position[2]) / 3.28084f;
+                    }
+                    starObject.transform.position = newPosition;
+                    // Update the lastPosition to match the new unit
+                    starInfo.lastPosition = new float[] { newPosition.x, newPosition.y, newPosition.z };
+                }
+            }
+            yield return null; // Allow frame rendering between batches for performance
+        }
+
+        EraseAndRedrawConstellations(); // Re-draw constellations since the stars have moved
+    }
 
 }
