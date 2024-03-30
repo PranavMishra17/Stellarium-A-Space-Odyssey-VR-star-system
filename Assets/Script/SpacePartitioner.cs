@@ -4,81 +4,75 @@ using UnityEngine;
 
 public class SpacePartitioner : MonoBehaviour
 {
-    public Vector3 sectorSize = new Vector3(100, 100, 100);
-    public GameObject player; // Assign the player GameObject in the Inspector
-    private Dictionary<Vector3Int, StarSector> sectors = new Dictionary<Vector3Int, StarSector>();
+    public LayerMask starLayer; // Ensure this matches the layer your stars are on
+    public float radius; // The radius of the cylinder
+    public float height; // The height of the cylinder
 
-    // This overlap value will be used to adjust the sectorSize for overlap effect
-    public float overlap = 20f;
+    private List<GameObject> starsInside = new List<GameObject>();
+    private List<GameObject> starsOutside = new List<GameObject>();
 
-    public class StarSector
+    private void Start()
     {
-        public HashSet<GameObject> stars = new HashSet<GameObject>();
+        // When the scene loads, categorize stars into inside and outside the cylinder
+        //CategorizeStars();
     }
 
-    void Start()
+    public void CategorizeStars()
     {
-        StartCoroutine(DelayedPartitioning());
-    }
+        // Reset lists
+        starsInside.Clear();
+        starsOutside.Clear();
 
-    IEnumerator DelayedPartitioning()
-    {
-        yield return new WaitForSeconds(1); // Wait a bit to ensure all stars are loaded
-        PartitionStarsIntoSectors();
-        Debug.Log($"Partitioned into {sectors.Count} sectors with overlap.");
-    }
+        // Define the top and bottom points of the cylinder
+        Vector3 topPoint = new Vector3(0, height / 2, 0);
+        Vector3 bottomPoint = new Vector3(0, -height / 2, 0);
 
-    void Update()
-    {
-        UpdateSectorVisibility();
-    }
+        // Find all stars
+        GameObject[] allStars = GameObject.FindGameObjectsWithTag("Star");
 
-    Vector3Int GetSectorIndex(Vector3 position)
-    {
-        // Adjust position based on overlap to create naturally overlapping sectors
-        return new Vector3Int(
-            Mathf.FloorToInt((position.x + overlap) / (sectorSize.x + overlap)),
-            Mathf.FloorToInt((position.y + overlap) / (sectorSize.y + overlap)),
-            Mathf.FloorToInt((position.z + overlap) / (sectorSize.z + overlap))
-        );
-    }
-
-    void PartitionStarsIntoSectors()
-    {
-        GameObject[] stars = GameObject.FindGameObjectsWithTag("Star");
-        foreach (var star in stars)
+        // Check each star and categorize it
+        foreach (var star in allStars)
         {
-            Vector3Int sectorIndex = GetSectorIndex(star.transform.position);
-            if (!sectors.TryGetValue(sectorIndex, out StarSector sector))
+            // Calculate star's position relative to cylinder's center
+            Vector3 starPosition = star.transform.position;
+            bool isInCylinder = (starPosition.y <= topPoint.y && starPosition.y >= bottomPoint.y &&
+                                 Vector3.Distance(new Vector3(starPosition.x, 0, starPosition.z),
+                                 new Vector3(0, 0, 0)) <= radius);
+
+            if (isInCylinder)
             {
-                sector = new StarSector();
-                sectors[sectorIndex] = sector;
+                starsInside.Add(star);
             }
-            sector.stars.Add(star);
-            star.SetActive(false); // Initially deactivate all stars
-        }
-    }
-
-    void UpdateSectorVisibility()
-    {
-        // Deactivate all stars first
-        foreach (var sector in sectors.Values)
-        {
-            foreach (var star in sector.stars)
+            else
             {
-                star.SetActive(false);
+                starsOutside.Add(star);
             }
         }
 
-        // Reactivate stars in sectors close to the player
-        Vector3Int playerSectorIndex = GetSectorIndex(player.transform.position);
-        if (sectors.TryGetValue(playerSectorIndex, out StarSector playerSector))
+        // Debug information
+        Debug.Log("Stars inside cylinder: " + starsInside.Count);
+        Debug.Log("Stars outside cylinder: " + starsOutside.Count);
+
+        // Optional: Do something immediately after categorization, like deactivate all stars outside
+        SetActiveStarsOutside(false);
+    }
+
+    public void SetActiveStarsInside(bool isActive)
+    {
+        foreach (var star in starsInside)
         {
-            foreach (var star in playerSector.stars)
-            {
-                star.SetActive(true);
-            }
-            //Debug.Log($"Activated stars in player's sector: {playerSectorIndex}");
+            star.SetActive(isActive);
         }
     }
+
+    public void SetActiveStarsOutside(bool isActive)
+    {
+        foreach (var star in starsOutside)
+        {
+            star.SetActive(isActive);
+        }
+    }
+
+
+
 }

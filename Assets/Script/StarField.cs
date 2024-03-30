@@ -16,8 +16,12 @@ public class StarField : MonoBehaviour
     private List<StarDataLoader.Star> stars;
     private List<GameObject> starObjects;
 
+    private List<Explanet.Planet> planets;
+    private List<GameObject> planetObjects;
+
     // New field to hold loaded star data from JSON
     private StarGameObjectInfoList loadedData;
+    private PlanetGameObjectInfoList loadedPlanetData;
     private List<GameObject> constellationLineObjects = new List<GameObject>();
 
     private readonly int starFieldScale = 800; // Adjust this value as needed for your scene
@@ -42,10 +46,8 @@ public class StarField : MonoBehaviour
     public GameObject cameraCtrl;
 
     private bool starParsec = true;
-    public class StarInfoWrapper
-    {
-        public List<StarGameObjectInfo> stars;
-    }
+    private GameObject starParentGO;
+    private GameObject planetParentGO;
 
     [System.Serializable]
     public class StarGameObjectInfoList
@@ -63,6 +65,8 @@ public class StarField : MonoBehaviour
         public float hipparcosNumber; // Link to the Star data
         public Color starcolor;
         public Vector3 starVelocity;
+
+        public Vector3 starfeetVelocity;
 
         public float[] originalPosition = new float[3];
         public float[] lastPosition = new float[3];
@@ -98,13 +102,64 @@ public class StarField : MonoBehaviour
 
             absoluteMagnitude = absMag;
             relativeMagnitude = relMag;
+
+
+            Vector3 velocityFeet = velocity * 3.28084f; // 1 parsec = 3.28084 feet
+            this.starfeetVelocity = velocityFeet;
+        }
+    }
+
+    [System.Serializable]
+    public class PlanetGameObjectInfoList
+    {
+        public List<PlanetGameObjectInfo> planets = new List<PlanetGameObjectInfo>();
+    }
+
+
+    [System.Serializable]
+    public class PlanetGameObjectInfo
+    {
+        public float[] position = new float[3]; // Position in parsecs
+        public float[] positionInFeet = new float[3]; // Position in feet
+        public float[] rotation = new float[4]; // Quaternion rotation
+        public Color starcolor;
+
+        public float[] originalPosition = new float[3];
+        public float[] lastPosition = new float[3];
+
+
+        public PlanetGameObjectInfo(GameObject go, Color colour)
+        {
+            // Position in parsecs
+            position[0] = go.transform.position.x;
+            position[1] = go.transform.position.y;
+            position[2] = go.transform.position.z;
+
+            // Convert and store position in feet
+            Vector3 positionFeet = go.transform.position * 3.28084f; // 1 parsec = 3.28084 feet
+            positionInFeet[0] = positionFeet.x;
+            positionInFeet[1] = positionFeet.y;
+            positionInFeet[2] = positionFeet.z;
+
+            Quaternion rot = go.transform.rotation;
+            rotation[0] = rot.x;
+            rotation[1] = rot.y;
+            rotation[2] = rot.z;
+            rotation[3] = rot.w;
+
+            starcolor = colour;
+            originalPosition = position;
+            lastPosition = position;
+
         }
     }
 
 
+    public SpacePartitioner spacepart;
 
     void Start()
     {
+        spacepart = GetComponent<SpacePartitioner>();
         starMap = new Dictionary<int, GameObject>();
 
         //LoadStarsGO(); // Laod the stars from the excel file on runtime
@@ -113,7 +168,15 @@ public class StarField : MonoBehaviour
 
         LoadStarsFromJSON();  // load stars from json file in resources
 
+        //SavePlanetsDataAndGOInfo(); // load planets from excel file and save attr in json
+
+        LoadPlanetsFromJSON(); // load planets from json
+
         LoadAndDrawConstellations();
+
+        spacepart.CategorizeStars();
+        spacepart.SetActiveStarsInside(true);
+        spacepart.SetActiveStarsOutside(false);
     }
 
     private void LoadStarsGO()
@@ -213,9 +276,6 @@ public class StarField : MonoBehaviour
             // Calculate the direction vector from the starObject's position to the central y-axis cylinder
             Vector3 directionToYAxis = Vector3.Normalize(transform.up - starObject.transform.position);
 
-            // Make the starObject look in the direction of the central y-axis cylinder
-            //starObject.transform.LookAt(transform.position + directionToYAxis);
-
             starObject.transform.LookAt(directionToYAxis);
 
             starObject.transform.Rotate(0, 180, 0);
@@ -263,7 +323,7 @@ public class StarField : MonoBehaviour
     private void LoadStarsFromJSON(string filename = "starsGOInfo")
     {
         starObjects = new List<GameObject>();
-
+        GameObject star_parent = new GameObject("star_parent");
         // Note: No need for file extension; assume "starsGOInfo" as filename/resourcePath
         TextAsset textAsset = Resources.Load<TextAsset>(filename);
         if (textAsset == null)
@@ -282,7 +342,9 @@ public class StarField : MonoBehaviour
 
         foreach (StarGameObjectInfo info in loadedData.stars)
         {
+            
             GameObject starObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            starObject.transform.parent = star_parent.transform;
             Destroy(starObject.GetComponent<MeshCollider>()); // Assuming you don't need the MeshCollider
 
             // Applying saved position, rotation, and scale
@@ -306,35 +368,155 @@ public class StarField : MonoBehaviour
         }
 
         Debug.Log($"Loaded {loadedData.stars.Count} stars from JSON.");
+        starParentGO = star_parent;
     }
 
 
-
-    private void FixedUpdate()
+/// <summary>
+/// /////////////////////////////////////////////// EXOPLANET LOAD //////////////////////////////////////////////////////////////
+/// </summary>
+/// 
+    private void SavePlanetsDataAndGOInfo()
     {
-        // Rotate the camera around the scene on right mouse button drag
-        if (Input.GetKey(KeyCode.Mouse1))
+        // Load planet data
+        Explanet explanet = new Explanet();
+        planets = explanet.LoadData(-1);
+        planetObjects = new List<GameObject>();
+        List<PlanetGameObjectInfo> planetGOInfoList = new List<PlanetGameObjectInfo>(); // List to hold star GameObject info
+
+        if (planets.Count == 0)
         {
-            Camera.main.transform.RotateAround(Camera.main.transform.position, Camera.main.transform.right, Input.GetAxis("Mouse Y") * Time.deltaTime * 200);
-            Camera.main.transform.RotateAround(Camera.main.transform.position, Vector3.up, -Input.GetAxis("Mouse X") * Time.deltaTime * 200);
+            Debug.LogError("No planets were loaded. Ensure the data is correct and the file is in the Resources folder.");
+            return;
+        }
+
+        propBlock = new MaterialPropertyBlock();
+
+        foreach (Explanet.Planet planet in planets)
+        {
+            GameObject planetObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+
+            planetObject.GetComponent<MeshCollider>().convex = true; // Make MeshCollider convex or remove it
+            Destroy(planetObject.GetComponent<MeshCollider>()); // Optional: Remove the MeshCollider
+
+            planetObject.transform.parent = transform;
+            planetObject.name = $"HR {planet.hipparcosNumber}";
+            Vector3 scaledPosition = planet.position * positionScale;
+            planetObject.transform.localPosition = scaledPosition;
+            planetObject.transform.localScale = Vector3.one * Mathf.Lerp(starSizeMin, starSizeMax, planet.size);
+
+            // Calculate the direction vector from the starObject's position to the central y-axis cylinder
+            Vector3 directionToYAxis = Vector3.Normalize(transform.up - planetObject.transform.position);
+
+            planetObject.transform.LookAt(directionToYAxis);
+
+            planetObject.transform.Rotate(0, 180, 0);
+
+
+            MeshRenderer renderer = planetObject.GetComponent<MeshRenderer>();
+            renderer.material = sharedMaterial;
+            propBlock.Clear();
+            propBlock.SetColor("_Color", planet.colour);
+            renderer.SetPropertyBlock(propBlock);
+
+            planetObject.tag = "Star";
+            planetObject.layer = 9;
+
+            planetObjects.Add(planetObject);
+
+            // Add star GameObject info to the list
+            PlanetGameObjectInfo goInfo = new PlanetGameObjectInfo(planetObject, planet.colour);
+            planetGOInfoList.Add(goInfo);
+        }
+
+        // Save the star GameObject info to a JSON file
+        SavePlanetGameObjectInfo(planetGOInfoList);
+
+        Debug.Log($"Total number of planets loaded: {planets.Count}");
+    }
+
+    public void SavePlanetGameObjectInfo(List<PlanetGameObjectInfo> planetGOInfoList, string filename = "planetsGOInfo.json")
+    {
+        PlanetGameObjectInfoList container = new PlanetGameObjectInfoList();
+        container.planets = planetGOInfoList;
+
+        string path = Path.Combine(Application.persistentDataPath, filename);
+        string json = JsonUtility.ToJson(container, true);
+        File.WriteAllText(path, json);
+        Debug.Log($"Planet GameObject info saved to {path}");
+    }
+
+
+    private void LoadPlanetsFromJSON(string filename = "planetsGOInfo")
+    {
+        planetObjects = new List<GameObject>();
+        GameObject planet_parent = new GameObject("planet_parent");
+        // Note: No need for file extension; assume "starsGOInfo" as filename/resourcePath
+        TextAsset textAsset = Resources.Load<TextAsset>(filename);
+        if (textAsset == null)
+        {
+            Debug.LogError($"Star GameObject info file not found in Resources at {filename}");
+            return;
+        }
+
+        // Deserialize JSON content to your container class
+        loadedPlanetData = JsonUtility.FromJson<PlanetGameObjectInfoList>(textAsset.text);
+        if (loadedPlanetData == null || loadedPlanetData.planets == null || loadedPlanetData.planets.Count == 0)
+        {
+            Debug.LogError("Failed to load star data from JSON.");
+            return;
+        }
+
+        foreach (PlanetGameObjectInfo info in loadedPlanetData.planets)
+        {
+
+            GameObject planetObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            planetObject.transform.parent = planet_parent.transform;
+            Destroy(planetObject.GetComponent<MeshCollider>()); // Assuming you don't need the MeshCollider
+
+            // Applying saved position, rotation, and scale
+            planetObject.transform.position = new Vector3(info.position[0], info.position[1], info.position[2]);
+            planetObject.transform.rotation = new Quaternion(info.rotation[0], info.rotation[1], info.rotation[2], info.rotation[3]);
+            planetObject.transform.localScale = Vector3.one; // Adjust scale if necessary
+
+            // Apply the shader material and color
+            MeshRenderer renderer = planetObject.GetComponent<MeshRenderer>();
+            renderer.material = sharedMaterial;
+            renderer.material.color = info.starcolor; // Apply the saved color
+
+            planetObject.name = $"PR {info}";
+            planetObject.tag = "Star";
+            planetObject.layer = 9; // Assuming layer 9 is assigned to stars
+
+            planetObjects.Add(planetObject);
+
+            // Map star objects for easy access
+            //starMap.Add((int)info.hipparcosNumber, planetObject);
+        }
+
+        Debug.Log($"Loaded {loadedPlanetData.planets.Count} stars from JSON.");
+
+        planetParentGO = planet_parent;
+        planetParentGO.SetActive(false);
+        isPlanet = false;
+    }
+
+    public bool isPlanet = false;
+    public void Switch2Planet()
+    {
+        if (!isPlanet)
+        {
+            starParentGO.SetActive(false);
+            planetParentGO.SetActive(true);
+            isPlanet = true;
+        }
+        else
+        {
+            starParentGO.SetActive(true);
+            planetParentGO.SetActive(false);
+            isPlanet = false;
         }
     }
-
-    private void OnValidate()
-    {
-        // This function will update the star sizes in the editor when the starSizeMin or starSizeMax values are changed
-        if (starObjects != null && stars != null && starObjects.Count == stars.Count)
-        {
-            for (int i = 0; i < starObjects.Count; i++)
-            {
-                // Update the size set in the shader (if using one) or just the scale of the object
-                starObjects[i].transform.localScale = Vector3.one * Mathf.Lerp(starSizeMin, starSizeMax, stars[i].size);
-                // If using a shader that has a size property, you would set it like this:
-                // starObjects[i].GetComponent<MeshRenderer>().material.SetFloat("_Size", Mathf.Lerp(starSizeMin, starSizeMax, stars[i].size));
-            }
-        }
-    }
-
 
     /////////////////////////////////////////////////////- Constellations below -//////////////////////////////////////////////////////////////////
     ///
@@ -519,6 +701,11 @@ public class StarField : MonoBehaviour
     private void DrawConstellation(Constellation constellation)
     {
         GameObject constellationParent = new GameObject($"Constellation_{constellation.Name}");
+        constellationParent.transform.parent = starParentGO.transform;
+
+        int expectedLines = constellation.StarPairs.Length / 2; // Assuming pairs of stars define a line
+        int drawnLines = 0;
+
         for (int i = 0; i < constellation.StarPairs.Length; i += 2)
         {
             if (i + 1 >= constellation.StarPairs.Length) break; // Safety check
@@ -530,14 +717,24 @@ public class StarField : MonoBehaviour
             {
                 GameObject lineObject = DrawLineBetweenStars(star1, star2, constellation.Name);
                 lineObject.transform.parent = constellationParent.transform; // Set parent
+                drawnLines++;
             }
             else
             {
-                Debug.LogWarning($"Constellation {constellation.Name} missing stars: {hip1} or {hip2}");
+                //Debug.LogWarning($"Constellation {constellation.Name} missing stars: {hip1} or {hip2}");
             }
         }
-    }
 
+        // After attempting to draw all lines, check if any were missing
+        if (drawnLines < expectedLines)
+        {
+           // Debug.Log($"Constellation {constellation.Name} is missing some lines. {drawnLines}/{expectedLines} were drawn.");
+        }
+        else
+        {
+            //Debug.Log($"Constellation {constellation.Name} fully drawn with {drawnLines}/{expectedLines} lines.");
+        }
+    }
 
     private GameObject DrawLineBetweenStars(GameObject star1, GameObject star2, string constellationName)
     {
@@ -619,6 +816,9 @@ public class StarField : MonoBehaviour
     private bool isMoving = false;
     private float timeSpeed = 1.0f;
 
+
+    public Text slidertext;
+
     public void MoveStars()
     {
         if (loadedData != null)
@@ -648,14 +848,8 @@ public class StarField : MonoBehaviour
         int batchSize = 1000; // Adjust based on performance
         float timeAdjustment = 0f;
 
-        if (starParsec)
-        {
-            timeAdjustment = speedSlider.value * speedScale * timeSpeed; 
-        }
-        else
-        {
-            timeAdjustment = speedSlider.value * speedScale * timeSpeed * 3.28084f;
-        }
+        Vector3 velocity = Vector3.zero;
+        timeAdjustment = speedSlider.value * speedScale * timeSpeed; 
 
         // Update the time elapsed before moving stars
         UpdateTimeElapsed(timeAdjustment);
@@ -667,7 +861,14 @@ public class StarField : MonoBehaviour
                 StarGameObjectInfo starInfo = loadedData.stars[j];
                 if (starMap.TryGetValue((int)starInfo.hipparcosNumber, out GameObject starObject))
                 {
-                    Vector3 velocity = starInfo.starVelocity * timeAdjustment;
+                    if (starParsec)
+                    {
+                        velocity = starInfo.starVelocity * timeAdjustment;
+                    }
+                    else
+                    {
+                        velocity = starInfo.starfeetVelocity * timeAdjustment;
+                    }
                     Vector3 newPosition = new Vector3(starInfo.lastPosition[0], starInfo.lastPosition[1], starInfo.lastPosition[2]) + velocity;
                     starObject.transform.position = newPosition;
                     starInfo.lastPosition = new float[] { newPosition.x, newPosition.y, newPosition.z };
@@ -713,14 +914,14 @@ public class StarField : MonoBehaviour
             yield return null; // Wait for the next frame
         }
 
-        playtext.text = "MOVE";
         EraseAndRedrawConstellations();
-        //SwapConstellationMaterials();
+        playtext.text = "Switch to Feet";
     }
 
     public void AdjustTimeSpeed()
     {
         timeSpeed = speedSlider.value;
+        slidertext.text = speedSlider.value.ToString();
     }
 
 
@@ -732,8 +933,8 @@ public class StarField : MonoBehaviour
         }
         else
         {
-            //ShiftStarsToParsecs();
-            ResetStars();
+            ShiftStarsToParsecs();
+            //ResetStars();
             starParsec = true;
         }
     }
@@ -777,12 +978,12 @@ public class StarField : MonoBehaviour
                     if (toFeet)
                     {
                         // Convert parsec position to feet and update
-                        newPosition = new Vector3(starInfo.position[0], starInfo.position[1], starInfo.position[2]) * 3.28084f;
+                        newPosition = new Vector3(starInfo.positionInFeet[0], starInfo.positionInFeet[1], starInfo.positionInFeet[2]);
                     }
                     else
                     {
                         // Convert feet position back to parsecs
-                        newPosition = new Vector3(starInfo.position[0], starInfo.position[1], starInfo.position[2]) / 3.28084f;
+                        newPosition = new Vector3(starInfo.originalPosition[0], starInfo.originalPosition[1], starInfo.originalPosition[2]);
                     }
                     starObject.transform.position = newPosition;
                     // Update the lastPosition to match the new unit
@@ -793,6 +994,21 @@ public class StarField : MonoBehaviour
         }
 
         EraseAndRedrawConstellations(); // Re-draw constellations since the stars have moved
+    }
+
+    private void SetSliderValue()
+    {
+        // This function will update the star sizes in the editor when the starSizeMin or starSizeMax values are changed
+        if (starObjects != null && stars != null && starObjects.Count == stars.Count)
+        {
+            for (int i = 0; i < starObjects.Count; i++)
+            {
+                // Update the size set in the shader (if using one) or just the scale of the object
+                starObjects[i].transform.localScale = Vector3.one * Mathf.Lerp(starSizeMin, starSizeMax, stars[i].size);
+                // If using a shader that has a size property, you would set it like this:
+                // starObjects[i].GetComponent<MeshRenderer>().material.SetFloat("_Size", Mathf.Lerp(starSizeMin, starSizeMax, stars[i].size));
+            }
+        }
     }
 
 }

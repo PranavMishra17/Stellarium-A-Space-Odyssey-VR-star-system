@@ -17,6 +17,8 @@ public class StarDataLoader : MonoBehaviour
         public Vector3 velocity;
         public Vector3 originalPosition;
 
+        public Vector3 originalfeetPosition;
+
         public Vector3 lastPosition;
 
         public Star(float hipparcosNumber, float distanceFromSol, Vector3 position,
@@ -32,6 +34,7 @@ public class StarDataLoader : MonoBehaviour
             this.velocity = velocity;
             this.originalPosition = position;
             this.lastPosition = position;
+            this.originalfeetPosition = originalPosition * 3.28084f;
         }
 
         // Get the starting position shown in the file.
@@ -120,7 +123,9 @@ public class StarDataLoader : MonoBehaviour
     public List<Star> LoadData(int numberOfStarsToLoad)
     {
         List<Star> stars = new List<Star>();
-        const string filename = "cleaned_stardata"; // Updated file name
+
+        const string filename = "ex_star"; // Updated file name
+
         TextAsset textAsset = Resources.Load<TextAsset>(filename);
 
         if (textAsset == null)
@@ -140,8 +145,8 @@ public class StarDataLoader : MonoBehaviour
             // Check that we have essential data
             if (data.Length < 8)
             {
-                Debug.LogWarning($"Skipping row with insufficient essential columns: {string.Join(", ", data)}");
-                continue;
+                //Debug.LogWarning($"Skipping row with insufficient essential columns: {string.Join(", ", data)}");
+                //continue;
             }
 
             // Parse the necessary data
@@ -158,10 +163,15 @@ public class StarDataLoader : MonoBehaviour
                 continue;
             }
 
+            if(hip == 0f)
+            {
+                continue;
+            }
+
             // Default values for missing data
-            float absMag = data.Length > 5 && float.TryParse(data[5], out float parsedAbsMag) ? parsedAbsMag : 1f; // Default or previous star's absMag
-            float mag = data.Length > 6 && float.TryParse(data[6], out float parsedMag) ? parsedMag : 1f; // Default or previous star's mag
-            Color starColor = data.Length > 10 && !string.IsNullOrEmpty(data[10]) ? SetColour(data[10][0], data[10].Length > 1 ? data[10][1] : '0') : Color.white; // Default to white
+            float absMag = data.Length > 4 && float.TryParse(data[5], out float parsedAbsMag) ? parsedAbsMag : 1f; // Default or previous star's absMag
+            float mag = data.Length > 5 && float.TryParse(data[6], out float parsedMag) ? parsedMag : 1f; // Default or previous star's mag
+            Color starColor = !string.IsNullOrEmpty(data[10]) ? SetColour(data[10][0], data[10].Length > 1 ? data[10][1] : '0') : Color.white; // Default to white
 
             // Create a new Star object and add it to the list
             Star star = new Star(hip, dist, new Vector3(x0, y0, z0), starColor, 1f, absMag, mag, new Vector3(vx, vy, vz));
