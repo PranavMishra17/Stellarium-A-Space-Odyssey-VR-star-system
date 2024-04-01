@@ -48,6 +48,7 @@ public class StarField : MonoBehaviour
     private bool starParsec = true;
     private GameObject starParentGO;
     private GameObject planetParentGO;
+    public Text loadingProgressText;
 
     [System.Serializable]
     public class StarGameObjectInfoList
@@ -166,17 +167,19 @@ public class StarField : MonoBehaviour
 
         //SaveStarsDataAndGOInfo();  // load stars from excel file and saves their attributes in a json file
 
-        LoadStarsFromJSON();  // load stars from json file in resources
+
+        //StartCoroutine(LoadStarsFromJSONCoroutine());
+        //LoadStarsFromJSON();  // load stars from json file in resources
 
         //SavePlanetsDataAndGOInfo(); // load planets from excel file and save attr in json
 
         LoadPlanetsFromJSON(); // load planets from json
 
-        LoadAndDrawConstellations();
+    }
 
-        spacepart.CategorizeStars();
-        spacepart.SetActiveStarsInside(true);
-        spacepart.SetActiveStarsOutside(false);
+    public void LoadStars()
+    {
+        StartCoroutine(LoadStarsFromJSONCoroutine());
     }
 
     private void LoadStarsGO()
@@ -194,7 +197,7 @@ public class StarField : MonoBehaviour
 
         // Prepare a shared material property block for instancing
         propBlock = new MaterialPropertyBlock();
-        bool alphaCentauriFound = false; // Flag to check if Alpha Centauri is found
+        //bool alphaCentauriFound = false; // Flag to check if Alpha Centauri is found
 
         foreach (StarDataLoader.Star star in stars)
         {
@@ -218,7 +221,7 @@ public class StarField : MonoBehaviour
             if (star.hipparcosNumber == 71683)
             {
                 Debug.Log($"Alpha Centauri (Rigil Kentaurus) found! Position: {scaledPosition}, Color: {star.colour}, Size: {Mathf.Lerp(starSizeMin, starSizeMax, star.absoluteMagnitude)}");
-                alphaCentauriFound = true;
+                //alphaCentauriFound = true;
             }
 
             // Set common material (with GPU instancing enabled) to all stars
@@ -320,7 +323,7 @@ public class StarField : MonoBehaviour
     }
 
 
-    private void LoadStarsFromJSON(string filename = "starsGOInfo")
+    private void LoadStarsFromJSON(string filename = "reduced_starsGOinfo")
     {
         starObjects = new List<GameObject>();
         GameObject star_parent = new GameObject("star_parent");
@@ -372,10 +375,84 @@ public class StarField : MonoBehaviour
     }
 
 
-/// <summary>
-/// /////////////////////////////////////////////// EXOPLANET LOAD //////////////////////////////////////////////////////////////
-/// </summary>
-/// 
+    private IEnumerator LoadStarsFromJSONCoroutine(string filename = "reduced_starsGOinfo")
+    {
+        starObjects = new List<GameObject>();
+        GameObject star_parent = new GameObject("star_parent");
+        TextAsset textAsset = Resources.Load<TextAsset>(filename);
+
+        if (textAsset == null)
+        {
+            Debug.LogError($"Star GameObject info file not found in Resources at {filename}");
+            yield break; // Exit the coroutine early if file not found
+        }
+
+        loadedData = JsonUtility.FromJson<StarGameObjectInfoList>(textAsset.text);
+        if (loadedData == null || loadedData.stars == null || loadedData.stars.Count == 0)
+        {
+            Debug.LogError("Failed to load star data from JSON.");
+            yield break; // Exit the coroutine early if data failed to load
+        }
+
+        int totalStars = loadedData.stars.Count;
+        int batchCount = 1000;
+        int frameCounter = 0;
+
+        for (int i = 0; i < totalStars; i += batchCount)
+        {
+            for (int j = i; j < Mathf.Min(i + batchCount, totalStars); j++)
+            {
+                StarGameObjectInfo info = loadedData.stars[j];
+                GameObject starObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                starObject.transform.parent = star_parent.transform;
+                Destroy(starObject.GetComponent<MeshCollider>()); // Assuming you don't need the MeshCollider
+
+                // Applying saved position, rotation, and scale
+                starObject.transform.position = new Vector3(info.position[0], info.position[1], info.position[2]);
+                starObject.transform.rotation = new Quaternion(info.rotation[0], info.rotation[1], info.rotation[2], info.rotation[3]);
+                starObject.transform.localScale = Vector3.one; // Adjust scale if necessary
+
+                // Apply the shader material and color
+                MeshRenderer renderer = starObject.GetComponent<MeshRenderer>();
+                renderer.material = sharedMaterial;
+                renderer.material.color = info.starcolor; // Apply the saved color
+
+                starObject.name = $"HR {info.hipparcosNumber}";
+                starObject.tag = "Star";
+                starObject.layer = 9; // Assuming layer 9 is assigned to stars
+
+                starObjects.Add(starObject);
+
+                // Map star objects for easy access
+                starMap.Add((int)info.hipparcosNumber, starObject);
+            }
+
+            if (frameCounter % 10 == 0) // Update text every 20 frames
+            {
+                float progress = (float)i / totalStars;
+                loadingProgressText.text = $"Loading stars... {progress * 100f:F2}%";
+            }
+
+            frameCounter++;
+            yield return null; // Wait for the next frame
+        }
+
+        loadingProgressText.text = "Loading complete!";
+        Debug.Log($"Loaded {totalStars} stars from JSON.");
+        starParentGO = star_parent;
+
+        LoadAndDrawConstellations();
+
+        spacepart.CategorizeStars();
+        spacepart.SetActiveStarsInside(true);
+        spacepart.SetActiveStarsOutside(false);
+    }
+
+
+    /// <summary>
+    /// /////////////////////////////////////////////// EXOPLANET LOAD //////////////////////////////////////////////////////////////
+    /// </summary>
+    /// 
     private void SavePlanetsDataAndGOInfo()
     {
         // Load planet data
@@ -554,6 +631,8 @@ public class StarField : MonoBehaviour
         {
             ToggleConstellation(1); // Move to the next constellation
         }
+
+        UpdateDistanceText();
     }
 
     private GameObject previouslyFocusedConstellation = null;
@@ -887,6 +966,12 @@ public class StarField : MonoBehaviour
 
             totalSimulatedYears = 0f;
             UpdateTimeElapsed(0f);
+
+            player.transform.position = gameObject.transform.position;
+
+            player.transform.rotation = gameObject.transform.rotation;
+
+            playtext.text = "Switch to Feet";
         }
         else
         {
@@ -915,7 +1000,6 @@ public class StarField : MonoBehaviour
         }
 
         EraseAndRedrawConstellations();
-        playtext.text = "Switch to Feet";
     }
 
     public void AdjustTimeSpeed()
@@ -950,6 +1034,8 @@ public class StarField : MonoBehaviour
 
         StartCoroutine(ShiftStarsPosition(loadedData, true)); // True for shifting to feet
         playtext.text = "Switch to Parsec";
+
+        UpdateTimeElapsed(0f);
     }
 
     public void ShiftStarsToParsecs()
@@ -962,6 +1048,8 @@ public class StarField : MonoBehaviour
 
         StartCoroutine(ShiftStarsPosition(loadedData, false)); // False for shifting to parsecs
         playtext.text = "Switch to Feet";
+
+        UpdateTimeElapsed(0f);
     }
 
     private IEnumerator ShiftStarsPosition(StarGameObjectInfoList data, bool toFeet)
@@ -1008,6 +1096,20 @@ public class StarField : MonoBehaviour
                 // If using a shader that has a size property, you would set it like this:
                 // starObjects[i].GetComponent<MeshRenderer>().material.SetFloat("_Size", Mathf.Lerp(starSizeMin, starSizeMax, stars[i].size));
             }
+        }
+    }
+
+    public Transform player; // Reference to the player's transform
+    public Text distanceText; // Reference to the Text UI for displaying distance
+
+
+    // Update the distance text based on the distance between the player and the button
+    private void UpdateDistanceText()
+    {
+        if (player != null && distanceText != null)
+        {
+            float distance = Vector3.Distance(player.position, transform.position);
+            distanceText.text = "Distance: " + distance.ToString("F2") + " units";
         }
     }
 

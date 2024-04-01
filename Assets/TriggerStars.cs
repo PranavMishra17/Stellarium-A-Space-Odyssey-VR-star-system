@@ -13,7 +13,8 @@ public class TriggerStars : MonoBehaviour
         if (other.CompareTag("MainCamera"))
         {
             spacePart.SetActiveStarsInside(true);
-            spacePart.SetActiveStarsOutside(false);
+            spacePart.SetActiveStarsOutsideF(false);
+            spacePart.SetActiveStarsOutsideB(false);
             // Call your desired function or execute your code here
             Debug.Log("Player entered the trigger zone!");
         }
@@ -25,7 +26,18 @@ public class TriggerStars : MonoBehaviour
         if (other.CompareTag("MainCamera"))
         {
             spacePart.SetActiveStarsInside(false);
-            spacePart.SetActiveStarsOutside(true);
+
+            if (other.transform.position.z > 0)
+            {
+                spacePart.SetActiveStarsOutsideF(true);
+                spacePart.SetActiveStarsOutsideB(false);
+            }
+            else
+            {
+                spacePart.SetActiveStarsOutsideF(false);
+                spacePart.SetActiveStarsOutsideB(true);
+            }
+            
             // Call your desired function or execute your code here
             Debug.Log("Player exited the trigger zone!");
         }

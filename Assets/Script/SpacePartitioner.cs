@@ -10,6 +10,8 @@ public class SpacePartitioner : MonoBehaviour
 
     private List<GameObject> starsInside = new List<GameObject>();
     private List<GameObject> starsOutside = new List<GameObject>();
+    private List<GameObject> starsOutsideF = new List<GameObject>();
+    private List<GameObject> starsOutsideB = new List<GameObject>();
 
     private void Start()
     {
@@ -45,6 +47,14 @@ public class SpacePartitioner : MonoBehaviour
             }
             else
             {
+                if(star.transform.position.z > 0)
+                {
+                    starsOutsideF.Add(star);
+                }
+                else
+                {
+                    starsOutsideB.Add(star);
+                }
                 starsOutside.Add(star);
             }
         }
@@ -52,6 +62,8 @@ public class SpacePartitioner : MonoBehaviour
         // Debug information
         Debug.Log("Stars inside cylinder: " + starsInside.Count);
         Debug.Log("Stars outside cylinder: " + starsOutside.Count);
+        Debug.Log("Stars outside cylinderF: " + starsOutsideF.Count);
+        Debug.Log("Stars outside cylinderB: " + starsOutsideB.Count);
 
         // Optional: Do something immediately after categorization, like deactivate all stars outside
         SetActiveStarsOutside(false);
@@ -73,6 +85,20 @@ public class SpacePartitioner : MonoBehaviour
         }
     }
 
+    public void SetActiveStarsOutsideF(bool isActive)
+    {
+        foreach (var star in starsOutsideF)
+        {
+            star.SetActive(isActive);
+        }
+    }
 
+    public void SetActiveStarsOutsideB(bool isActive)
+    {
+        foreach (var star in starsOutsideB)
+        {
+            star.SetActive(isActive);
+        }
+    }
 
 }
