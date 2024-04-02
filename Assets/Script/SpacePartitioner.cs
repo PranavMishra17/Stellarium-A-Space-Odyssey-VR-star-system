@@ -60,10 +60,10 @@ public class SpacePartitioner : MonoBehaviour
         }
 
         // Debug information
-        Debug.Log("Stars inside cylinder: " + starsInside.Count);
-        Debug.Log("Stars outside cylinder: " + starsOutside.Count);
-        Debug.Log("Stars outside cylinderF: " + starsOutsideF.Count);
-        Debug.Log("Stars outside cylinderB: " + starsOutsideB.Count);
+        //Debug.Log("Stars inside cylinder: " + starsInside.Count);
+        //Debug.Log("Stars outside cylinder: " + starsOutside.Count);
+        //Debug.Log("Stars outside cylinderF: " + starsOutsideF.Count);
+        //Debug.Log("Stars outside cylinderB: " + starsOutsideB.Count);
 
         // Optional: Do something immediately after categorization, like deactivate all stars outside
         SetActiveStarsOutside(false);

@@ -50,6 +50,10 @@ public class StarField : MonoBehaviour
     private GameObject planetParentGO;
     public Text loadingProgressText;
 
+    public int starBatch = 100;
+    public GameObject btn2load;
+    public bool loadStars = false;
+
     [System.Serializable]
     public class StarGameObjectInfoList
     {
@@ -158,22 +162,28 @@ public class StarField : MonoBehaviour
 
     public SpacePartitioner spacepart;
 
+    private Dictionary<int, char> exoplanet;
+
     void Start()
     {
         spacepart = GetComponent<SpacePartitioner>();
         starMap = new Dictionary<int, GameObject>();
 
+        exoplanet = LoadExoplanetData();
+
         //LoadStarsGO(); // Laod the stars from the excel file on runtime
 
         //SaveStarsDataAndGOInfo();  // load stars from excel file and saves their attributes in a json file
 
-
-        //StartCoroutine(LoadStarsFromJSONCoroutine());
-        //LoadStarsFromJSON();  // load stars from json file in resources
+        if (loadStars)
+        {
+            StartCoroutine(LoadStarsFromJSONCoroutine());
+            //LoadStarsFromJSON();  // load stars from json file in resources
+        }
 
         //SavePlanetsDataAndGOInfo(); // load planets from excel file and save attr in json
 
-        LoadPlanetsFromJSON(); // load planets from json
+        //LoadPlanetsFromJSON(); // load planets from json
 
     }
 
@@ -395,7 +405,7 @@ public class StarField : MonoBehaviour
         }
 
         int totalStars = loadedData.stars.Count;
-        int batchCount = 1000;
+        int batchCount = starBatch;
         int frameCounter = 0;
 
         for (int i = 0; i < totalStars; i += batchCount)
@@ -420,9 +430,10 @@ public class StarField : MonoBehaviour
                 starObject.name = $"HR {info.hipparcosNumber}";
                 starObject.tag = "Star";
                 starObject.layer = 9; // Assuming layer 9 is assigned to stars
+                starObject.SetActive(false);
 
                 starObjects.Add(starObject);
-
+                
                 // Map star objects for easy access
                 starMap.Add((int)info.hipparcosNumber, starObject);
             }
@@ -437,15 +448,23 @@ public class StarField : MonoBehaviour
             yield return null; // Wait for the next frame
         }
 
-        loadingProgressText.text = "Loading complete!";
+        loadingProgressText.text = "Stars Loaded!";
+        Destroy(loadingProgressText, 3f);
         Debug.Log($"Loaded {totalStars} stars from JSON.");
         starParentGO = star_parent;
+
+        foreach (GameObject starObject in starObjects)
+        {
+            starObject.SetActive(true);
+        }
 
         LoadAndDrawConstellations();
 
         spacepart.CategorizeStars();
         spacepart.SetActiveStarsInside(true);
         spacepart.SetActiveStarsOutside(false);
+
+        btn2load.SetActive(true);
     }
 
 
@@ -578,22 +597,119 @@ public class StarField : MonoBehaviour
         isPlanet = false;
     }
 
+
+    private Dictionary<int, char> LoadExoplanetData(string filename = "final_exoplanetHIP")
+    {
+        Dictionary<int, char> exoplanetData = new Dictionary<int, char>();
+
+        // Assume the file is placed in the Resources folder
+        TextAsset data = Resources.Load<TextAsset>(filename);
+        if (data != null)
+        {
+            string[] lines = data.text.Split('\n');
+            for (int i = 1; i < lines.Length; i++) // Start from 1 to skip header
+            {
+                string[] columns = lines[i].Split(',');
+                if (columns.Length >= 3)
+                {
+                    if (int.TryParse(columns[1], out int hipId) && columns[2].Length > 0)
+                    {
+                        char spectType = columns[2][0]; // Get the first character for spectral type
+                        exoplanetData[hipId] = spectType;
+                    }
+                }
+            }
+        }
+
+        return exoplanetData;
+    }
+
+    public void UpdateStarColors(Dictionary<int, char> exoplanetData)
+    {
+        int matchCount = 0; // Counter for matching stars
+        foreach (var starInfo in loadedData.stars)
+        {
+            // Check if the current star's HIP number is present in the exoplanet data
+            if (exoplanetData.TryGetValue((int)starInfo.hipparcosNumber, out char spectType))
+            {
+                // Find the star GameObject using the star map
+                GameObject starObject;
+                if (starMap.TryGetValue((int)starInfo.hipparcosNumber, out starObject))
+                {
+                    // Convert spectral type to color
+                    Color newColor = SpectralTypeToColor(spectType);
+
+                    // Update the star's color using the calculated new color
+                    starObject.GetComponent<MeshRenderer>().material.color = newColor;
+
+                    // Increment the match counter
+                    matchCount++;
+                }
+            }
+        }
+
+        // Log the number of stars that were updated
+        Debug.Log($"Updated colors for {matchCount} stars based on exoplanet data.");
+    }
+
+    public void RevertStarColors()
+    {
+        int revertCount = 0; // Counter for reverted stars
+        foreach (var starInfo in loadedData.stars)
+        {
+            // Find the star GameObject using the star map
+            GameObject starObject;
+            if (starMap.TryGetValue((int)starInfo.hipparcosNumber, out starObject))
+            {
+                // Revert the star's color to its original color stored in starInfo
+                starObject.GetComponent<MeshRenderer>().material.color = starInfo.starcolor;
+
+                // Increment the revert counter
+                revertCount++;
+            }
+        }
+
+        // Log the number of stars that had their colors reverted
+        Debug.Log($"Reverted colors for {revertCount} stars to their original colors.");
+    }
+
+    // Method to convert spectral types to color. Implement based on your color scheme.
+    private Color SpectralTypeToColor(char spectType)
+    {
+        // Example of mapping spectral types to Unity colors. Customize as needed.
+        switch (spectType)
+        {
+            case 'O': return Color.blue;
+            case 'B': return Color.cyan;
+            case 'A': return Color.white;
+            case 'F': return Color.yellow;
+            case 'G': return Color.yellow * 0.8f; // White yellowish
+            case 'K': return new Color(1.0f, 0.8f, 0.5f); // orange
+            case 'M': return Color.red;
+            default: return Color.white; // Default color if spectral type is unknown
+        }
+    }
+
+
     public bool isPlanet = false;
     public void Switch2Planet()
     {
         if (!isPlanet)
         {
-            starParentGO.SetActive(false);
-            planetParentGO.SetActive(true);
+            UpdateStarColors(exoplanet);
+
             isPlanet = true;
         }
         else
         {
-            starParentGO.SetActive(true);
-            planetParentGO.SetActive(false);
+            RevertStarColors();
+
             isPlanet = false;
         }
     }
+
+
+
 
     /////////////////////////////////////////////////////- Constellations below -//////////////////////////////////////////////////////////////////
     ///
@@ -603,6 +719,9 @@ public class StarField : MonoBehaviour
     private int currentConstellationIndex = -1; // Starts with no constellation displayed
     private GameObject currentConstellationHolder = null;
     private Coroutine cameraMoveCoroutine = null;
+
+    private bool displayAllConstellations = true;
+    public List<int> selectedConstellationIndices = new List<int>();
 
     class Constellation
     {
@@ -651,10 +770,25 @@ public class StarField : MonoBehaviour
             }
         }
 
-        // Update current index based on direction
-        currentConstellationIndex += direction;
-        if (currentConstellationIndex >= constellationstxt.Count) currentConstellationIndex = 0;
-        else if (currentConstellationIndex < 0) currentConstellationIndex = constellationstxt.Count - 1;
+        if (displayAllConstellations)
+        {
+            currentConstellationIndex += direction;
+            if (currentConstellationIndex >= constellationstxt.Count) currentConstellationIndex = 0;
+            else if (currentConstellationIndex < 0) currentConstellationIndex = constellationstxt.Count - 1;
+        }
+        else
+        {
+            // Find the current index in the subset
+            int currentIndexInSubset = selectedConstellationIndices.IndexOf(currentConstellationIndex);
+            currentIndexInSubset += direction;
+
+            if (currentIndexInSubset >= selectedConstellationIndices.Count) currentIndexInSubset = 0;
+            else if (currentIndexInSubset < 0) currentIndexInSubset = selectedConstellationIndices.Count - 1;
+
+            // Update currentConstellationIndex to the new value based on the subset
+            currentConstellationIndex = selectedConstellationIndices[currentIndexInSubset];
+        }
+
 
         Constellation focusedConstellation = constellationstxt[currentConstellationIndex];
         GameObject constellationGO = GameObject.Find($"Constellation_{focusedConstellation.Name}");
@@ -740,8 +874,55 @@ public class StarField : MonoBehaviour
     public void EraseAndRedrawConstellations()
     {
         EraseAllConstellationLines();
-        DrawAllConstellations();
+
+        if (displayAllConstellations)
+        {
+            DrawAllConstellations();
+        }
+        else
+        {
+            DrawSelectedConstellations(selectedConstellationIndices);
+        }
     }
+
+    private void DrawSelectedConstellations(List<int> indices)
+    {
+        foreach (int index in indices)
+        {
+            if (index >= 0 && index < constellationstxt.Count)
+            {
+                DrawConstellation(constellationstxt[index]);
+            }
+        }
+    }
+
+    public void SetupConstellationDisplay(bool displayAll, List<int> indices = null)
+    {
+        displayAllConstellations = displayAll;
+        if (!displayAll && indices != null)
+        {
+            selectedConstellationIndices = indices;
+        }
+
+        EraseAndRedrawConstellations();
+    }
+
+    private bool switchconstellation = false;
+
+    public void Switch2Constellations()
+    {
+        if (switchconstellation)
+        {
+            SetupConstellationDisplay(true);
+            switchconstellation = false;
+        }
+        else
+        {
+            SetupConstellationDisplay(false, selectedConstellationIndices);
+            switchconstellation = true;
+        }
+    }
+
 
     private void EraseAllConstellationLines()
     {
