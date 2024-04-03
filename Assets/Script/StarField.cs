@@ -1109,10 +1109,9 @@ public class StarField : MonoBehaviour
         float timeAdjustment = 0f;
 
         Vector3 velocity = Vector3.zero;
-        timeAdjustment = speedSlider.value * speedScale * timeSpeed; 
+        timeAdjustment = speedSlider.value * speedScale; 
 
-        // Update the time elapsed before moving stars
-        UpdateTimeElapsed(timeAdjustment);
+
 
         for (int i = 0; i < loadedData.stars.Count; i += batchSize)
         {
@@ -1137,6 +1136,9 @@ public class StarField : MonoBehaviour
             yield return null; // Wait for the next frame
         }
         EraseAndRedrawConstellations();
+
+        // Update the time elapsed before moving stars
+        UpdateTimeElapsed(timeAdjustment);
     }
 
     public void ResetStars()
