@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using System.IO;
+using VolumetricLines;
 
 public class StarField : MonoBehaviour
 {
@@ -44,11 +45,13 @@ public class StarField : MonoBehaviour
     public GameObject starQuad;
 
     public GameObject cameraCtrl;
+    public GameObject cameraCtrl2;
 
     private bool starParsec = true;
     private GameObject starParentGO;
     private GameObject planetParentGO;
     public Text loadingProgressText;
+    public TextMesh loadingProgressText2;
 
     public int starBatch = 100;
     public GameObject btn2load;
@@ -442,6 +445,7 @@ public class StarField : MonoBehaviour
             {
                 float progress = (float)i / totalStars;
                 loadingProgressText.text = $"Loading stars... {progress * 100f:F2}%";
+                loadingProgressText2.text = $"Loading stars... {progress * 100f:F2}%";
             }
 
             frameCounter++;
@@ -449,7 +453,10 @@ public class StarField : MonoBehaviour
         }
 
         loadingProgressText.text = "Stars Loaded!";
+        loadingProgressText2.text = "Stars Loaded!";
         Destroy(loadingProgressText, 3f);
+        Destroy(loadingProgressText2, 3f);
+
         Debug.Log($"Loaded {totalStars} stars from JSON.");
         starParentGO = star_parent;
 
@@ -694,6 +701,7 @@ public class StarField : MonoBehaviour
     public bool isPlanet = false;
     public void Switch2Planet()
     {
+        UpdateStarColors(exoplanet);
         if (!isPlanet)
         {
             UpdateStarColors(exoplanet);
@@ -722,6 +730,15 @@ public class StarField : MonoBehaviour
 
     private bool displayAllConstellations = true;
     public List<int> selectedConstellationIndices = new List<int>();
+
+    public GameObject volumetricLinePrefab; // Assign in inspector
+    private GameObject volumetricLineInstance;
+    private VolumetricLineBehavior volumetricLinesScript;
+    public float rayWidth;
+    public Color raycolor;
+
+    public Color raycolorFocused;
+
 
     class Constellation
     {
@@ -763,10 +780,10 @@ public class StarField : MonoBehaviour
         // Reset material of the previously focused constellation
         if (previouslyFocusedConstellation != null)
         {
-            var lineRenderers = previouslyFocusedConstellation.GetComponentsInChildren<LineRenderer>();
+            var lineRenderers = previouslyFocusedConstellation.GetComponentsInChildren<VolumetricLineBehavior>();
             foreach (var lr in lineRenderers)
             {
-                lr.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive")); // Reset to default material
+                lr.LineColor = raycolor; // Reset to default material
             }
         }
 
@@ -795,10 +812,10 @@ public class StarField : MonoBehaviour
 
         if (constellationGO != null)
         {
-            var lineRenderers = constellationGO.GetComponentsInChildren<LineRenderer>();
+            var lineRenderers = constellationGO.GetComponentsInChildren<VolumetricLineBehavior>();
             foreach (var lr in lineRenderers)
             {
-                lr.material = focusedConstellationMaterial; // Set focused material
+                lr.LineColor = raycolorFocused; // Set focused material
             }
             previouslyFocusedConstellation = constellationGO; // Update previously focused constellation
         }
@@ -827,46 +844,71 @@ public class StarField : MonoBehaviour
         Quaternion startRotation = cameraCtrl.transform.rotation;
         Quaternion targetRotation = Quaternion.LookRotation(targetPosition - cameraCtrl.transform.position);
 
+        Vector3 origin = Vector3.zero;
+        Quaternion targetRotation2 = Quaternion.LookRotation(origin - cameraCtrl2.transform.position);
+
         while (elapsed < duration)
         {
             cameraCtrl.transform.rotation = Quaternion.Slerp(startRotation, targetRotation, elapsed / duration);
+            
             elapsed += Time.deltaTime;
             yield return null;
         }
+        cameraCtrl2.transform.rotation = new Quaternion (0,0,0,0);
     }
 
-
-    private void SwapConstellationMaterials()
+    public void ToggleConstellationToIndex(int index)
     {
-        if (constellationstxt.Count == 0) return;
+        if (constellationstxt.Count == 0) return; // Return if no constellations are loaded
+
+        // Reset material of the previously focused constellation
+        if (previouslyFocusedConstellation != null)
+        {
+            var lineRenderers = previouslyFocusedConstellation.GetComponentsInChildren<VolumetricLineBehavior>();
+            foreach (var lr in lineRenderers)
+            {
+                lr.LineColor = raycolor; // Reset to the default color
+            }
+        }
+
+        if (displayAllConstellations)
+        {
+            if (index < 0 || index >= constellationstxt.Count) return; // Validate index
+            currentConstellationIndex = index;
+        }
+        else
+        {
+            if (!selectedConstellationIndices.Contains(index)) return; // Validate index is in the subset
+            currentConstellationIndex = index; // Set the current constellation index to the specified index
+        }
 
         Constellation focusedConstellation = constellationstxt[currentConstellationIndex];
         GameObject constellationGO = GameObject.Find($"Constellation_{focusedConstellation.Name}");
 
-        Debug.Log($"Focused on Constellation GO: {constellationGO.name}");
         if (constellationGO != null)
         {
-            var lineRenderers = constellationGO.GetComponentsInChildren<LineRenderer>();
+            // Highlight the newly focused constellation
+            var lineRenderers = constellationGO.GetComponentsInChildren<VolumetricLineBehavior>();
             foreach (var lr in lineRenderers)
             {
-                lr.material = focusedConstellationMaterial; // Set focused material
+                lr.LineColor = raycolorFocused; // Set focused color
             }
-            //previouslyFocusedConstellation = constellationGO; // Update previously focused constellation
+            previouslyFocusedConstellation = constellationGO; // Update the reference to the currently focused constellation
         }
 
-        // Turn camera towards the constellation
+        // Orient the camera to focus on the new constellation
         if (cameraMoveCoroutine != null)
         {
             StopCoroutine(cameraMoveCoroutine);
         }
-        if (focusedConstellation.CenterPosition == Vector3.zero)
-        {
-            //ToggleConstellation(1);
-        }
-        else
+        if (focusedConstellation.CenterPosition != Vector3.zero)
         {
             cameraMoveCoroutine = StartCoroutine(TurnCameraToConstellation(focusedConstellation.CenterPosition));
             Debug.Log($"Focused on Constellation: {focusedConstellation.Name}");
+        }
+        else
+        {
+            Debug.LogError("Constellation Center Position is not set properly.");
         }
     }
 
@@ -892,6 +934,7 @@ public class StarField : MonoBehaviour
             if (index >= 0 && index < constellationstxt.Count)
             {
                 DrawConstellation(constellationstxt[index]);
+                Debug.Log("Constellation drawing " + index);
             }
         }
     }
@@ -975,9 +1018,14 @@ public class StarField : MonoBehaviour
 
             if (starMap.TryGetValue(hip1, out GameObject star1) && starMap.TryGetValue(hip2, out GameObject star2))
             {
-                GameObject lineObject = DrawLineBetweenStars(star1, star2, constellation.Name);
+                //GameObject lineObject = DrawLineBetweenStars(star1, star2, constellation.Name);
+
+                GameObject lineObject = DrawLineRenBetweenStars(star1, star2, constellation.Name);
+
                 lineObject.transform.parent = constellationParent.transform; // Set parent
                 drawnLines++;
+
+                Debug.Log($"Constellation drawn {constellation.Name}]");
             }
             else
             {
@@ -1007,6 +1055,31 @@ public class StarField : MonoBehaviour
         return lineRenderer.gameObject; // Return the GameObject
     }
 
+    private GameObject DrawLineRenBetweenStars(GameObject star1, GameObject star2, string constellationName)
+    {
+        if (volumetricLinePrefab != null)
+        {
+            volumetricLineInstance = Instantiate(volumetricLinePrefab, transform.position, Quaternion.identity);
+            volumetricLineInstance.name = $"{constellationName}_Line";
+
+            volumetricLinesScript = volumetricLineInstance.GetComponent<VolumetricLineBehavior>();
+            //volumetricLineInstance.SetActive(false);
+            volumetricLinesScript.LineWidth = rayWidth;
+            volumetricLinesScript.LineColor = raycolor;
+        }
+
+        Vector3 start = star1.transform.position; // Start at the position of the wand
+        Vector3 end = star2.transform.position; // End a few units in the direction the wand is pointing
+
+        // Update positions in the VolumetricLines script
+        if (volumetricLinesScript != null)
+        {
+            volumetricLinesScript.m_startPos = start - volumetricLineInstance.transform.position;
+            volumetricLinesScript.m_endPos = end - volumetricLineInstance.transform.position;
+        }
+
+        return volumetricLineInstance.gameObject;
+    }
 
 
 
@@ -1068,6 +1141,8 @@ public class StarField : MonoBehaviour
     public Button moveButton;
     public Button resetButton;
     public Slider speedSlider;
+
+    public SliderHandle speedSliderValue;
     public Text playtext;
 
     public Text timeElapsedText; // Assign in Unity Inspector
@@ -1079,6 +1154,11 @@ public class StarField : MonoBehaviour
 
     public Text slidertext;
 
+
+    public TextMesh switchFeetTxt;
+    public TextMesh timeTxt;
+    public TextMesh sliderTxt;
+    public TextMesh distunderTxt;
     public void MoveStars()
     {
         if (loadedData != null)
@@ -1100,7 +1180,7 @@ public class StarField : MonoBehaviour
         totalSimulatedYears += yearsPassed;
 
         // Update the UI text component to display the total simulated time elapsed
-        timeElapsedText.text = $"{totalSimulatedYears:F2}";
+        timeTxt.text = $"{totalSimulatedYears:F2}";
     }
 
     public IEnumerator MoveStarsInBatches()
@@ -1109,7 +1189,7 @@ public class StarField : MonoBehaviour
         float timeAdjustment = 0f;
 
         Vector3 velocity = Vector3.zero;
-        timeAdjustment = speedSlider.value * speedScale; 
+        timeAdjustment = speedSliderValue.currentValue * speedScale; 
 
 
 
@@ -1155,6 +1235,7 @@ public class StarField : MonoBehaviour
             player.transform.rotation = gameObject.transform.rotation;
 
             playtext.text = "Switch to Feet";
+            switchFeetTxt.text = "Switch to Feet";
         }
         else
         {
@@ -1188,7 +1269,7 @@ public class StarField : MonoBehaviour
     public void AdjustTimeSpeed()
     {
         timeSpeed = speedSlider.value;
-        slidertext.text = speedSlider.value.ToString();
+        sliderTxt.text = speedSlider.value.ToString();
     }
 
 
@@ -1216,9 +1297,9 @@ public class StarField : MonoBehaviour
         }
 
         StartCoroutine(ShiftStarsPosition(loadedData, true)); // True for shifting to feet
-        playtext.text = "Switch to Parsec";
-
-        UpdateTimeElapsed(0f);
+        switchFeetTxt.text = "Switch to Parsec";
+        distunderTxt.text = "feet";
+        timeElapsedText.text = "0";
     }
 
     public void ShiftStarsToParsecs()
@@ -1230,9 +1311,10 @@ public class StarField : MonoBehaviour
         }
 
         StartCoroutine(ShiftStarsPosition(loadedData, false)); // False for shifting to parsecs
-        playtext.text = "Switch to Feet";
+        switchFeetTxt.text = "Switch to Feet";
+        distunderTxt.text = "parsec";
+        timeElapsedText.text = "0";
 
-        UpdateTimeElapsed(0f);
     }
 
     private IEnumerator ShiftStarsPosition(StarGameObjectInfoList data, bool toFeet)
@@ -1267,32 +1349,18 @@ public class StarField : MonoBehaviour
         EraseAndRedrawConstellations(); // Re-draw constellations since the stars have moved
     }
 
-    private void SetSliderValue()
-    {
-        // This function will update the star sizes in the editor when the starSizeMin or starSizeMax values are changed
-        if (starObjects != null && stars != null && starObjects.Count == stars.Count)
-        {
-            for (int i = 0; i < starObjects.Count; i++)
-            {
-                // Update the size set in the shader (if using one) or just the scale of the object
-                starObjects[i].transform.localScale = Vector3.one * Mathf.Lerp(starSizeMin, starSizeMax, stars[i].size);
-                // If using a shader that has a size property, you would set it like this:
-                // starObjects[i].GetComponent<MeshRenderer>().material.SetFloat("_Size", Mathf.Lerp(starSizeMin, starSizeMax, stars[i].size));
-            }
-        }
-    }
-
     public Transform player; // Reference to the player's transform
     public Text distanceText; // Reference to the Text UI for displaying distance
+    public TextMesh distanceTxt;
 
 
     // Update the distance text based on the distance between the player and the button
     private void UpdateDistanceText()
     {
-        if (player != null && distanceText != null)
+        if (player != null && distanceTxt != null)
         {
             float distance = Vector3.Distance(player.position, transform.position);
-            distanceText.text = "Distance: " + distance.ToString("F2") + " units";
+            distanceTxt.text =distance.ToString("F2");
         }
     }
 

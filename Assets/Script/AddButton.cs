@@ -8,6 +8,7 @@ public class AddButton : MonoBehaviour
     public float scaleFactor = 2f;
     public float transitionDuration = 0.5f;
     public Material[] materials; // Assign 0: Enlarged material, 1: Normal material
+    public Color[] colors; // Assign 0: Enlarged material, 1: Normal material
 
     private Vector3 originalScale;
     private Coroutine currentScaleCoroutine;
@@ -16,10 +17,29 @@ public class AddButton : MonoBehaviour
     public string thisButtonName;
 
     public WandRaycaster wrc;
+    public bool isEnter = false;
+
+    public ExitImage exi;
+    public AudioSource audiosrc;
+    public PlaySF playsf;
+
+    public GameObject constButtonPanel;
+    public GameObject btnPanel;
+    public int constIndex;
+
+    public GameObject infoBtn;
 
     void Start()
     {
         originalScale = transform.localScale;
+
+        //transform.localRotation = Quaternion.LookRotation.look
+
+        // Calculate the rotation needed to make the GameObject look at the head
+        Quaternion rotation = Quaternion.LookRotation(transform.position - wrc.gameObject.transform.position);
+
+        // Apply the rotation to the GameObject
+        transform.rotation = rotation;
     }
 
     private bool isLineOnQuad = false;
@@ -57,9 +77,21 @@ public class AddButton : MonoBehaviour
             StopCoroutine(currentScaleCoroutine);
         }
         currentScaleCoroutine = StartCoroutine(ScaleQuad(transform, originalScale * scaleFactor, transitionDuration));
-        text.SetActive(true);
 
-        GetComponent<Renderer>().material = materials[0]; // Switch to the "enlarged" material
+        if(text != null)
+        {
+            text.SetActive(true);
+        }
+
+        if(isEnter)
+        {
+            GetComponent<Renderer>().material.color = colors[0];
+        }
+        else
+        {
+            GetComponent<Renderer>().material = materials[0]; // Switch to the "enlarged" material
+        }
+
     }
 
     public void OnPointerExit()
@@ -69,9 +101,20 @@ public class AddButton : MonoBehaviour
             StopCoroutine(currentScaleCoroutine);
         }
         currentScaleCoroutine = StartCoroutine(ScaleQuad(transform, originalScale, transitionDuration));
-        text.SetActive(false);
+        if (text != null)
+        {
+            text.SetActive(false);
+        }
 
-        GetComponent<Renderer>().material = materials[1]; // Switch back to the normal material
+        if (isEnter)
+        {
+            GetComponent<Renderer>().material.color = colors[1];
+        }
+        else
+        {
+            GetComponent<Renderer>().material = materials[1]; // Switch back to the normal material
+        }
+
     }
 
     private IEnumerator ScaleQuad(Transform quadTransform, Vector3 targetScale, float duration)
@@ -103,8 +146,16 @@ public class AddButton : MonoBehaviour
                 SwitchFeetButton(); return; 
             case "switchcolor":
                 SwitchColorButton(); return; 
-            case "":
-                return;
+            case "enter":
+                EnterButton(); return;
+            case "slider":
+                EnterButton(); return;
+            case "const":
+                ConstellationButton(); return;
+            case "open":
+                OpenPanel(); return;
+            case "focus":
+                FocusonConst(); return;
             default:
                 return; 
         }
@@ -122,12 +173,65 @@ public class AddButton : MonoBehaviour
 
     public void SwitchFeetButton()
     {
-        sf.MoveStars();
+        sf.SwitchUnit();
     }
 
     public void SwitchColorButton()
     {
-        sf.MoveStars();
+        sf.Switch2Planet();
+    }
+
+    public void EnterButton()
+    {
+        exi.ExitBool();
+        exi.ExitChild();
+        playsf.PlaySoundByIndex(0);
+        Destroy(gameObject, 1f);
+    }
+
+    public void ConstellationButton()
+    {
+        sf.Switch2Constellations();
+
+        if (constButtonPanel.gameObject.activeSelf)
+        {
+            constButtonPanel.SetActive(false);
+        }
+        else
+        {
+            constButtonPanel.SetActive(true);
+        }
+    }
+
+    public void OpenPanel()
+    {
+
+        if (btnPanel.gameObject.activeSelf)
+        {
+            btnPanel.SetActive(false);
+            text.GetComponent<TextMesh>().text = "Open";
+        }
+        else
+        {
+            btnPanel.SetActive(true);
+            text.GetComponent<TextMesh>().text = "Close";
+        }
+        
+    }
+
+    public void FocusonConst()
+    {
+        Debug.Log("Focus called");
+        sf.ToggleConstellationToIndex(constIndex);
+
+        if(constIndex == 59)
+        {
+            infoBtn.SetActive(true);
+        }
+        else
+        {
+            infoBtn.SetActive(false);
+        }
     }
 
 }
