@@ -29,6 +29,16 @@ public class AddButton : MonoBehaviour
 
     public GameObject infoBtn;
 
+    public GameObject infoPanel;
+    public GameObject caveCtrl;
+
+    public PresentationController presentationController;
+
+    public GameObject openBtn;
+
+    public GameObject colorBtn;
+    public GameObject palateBtn;
+
     void Start()
     {
         originalScale = transform.localScale;
@@ -40,9 +50,25 @@ public class AddButton : MonoBehaviour
 
         // Apply the rotation to the GameObject
         transform.rotation = rotation;
+
+        if (thisButtonName == "info")
+        {
+            SetActiveFalse();
+        }
     }
 
     private bool isLineOnQuad = false;
+
+    public void SetActiveFalse()
+    {
+        StartCoroutine(FadeOutStars());
+    }
+
+    IEnumerator FadeOutStars()
+    {
+        yield return new WaitForSeconds(2f);
+        gameObject.SetActive(false);
+    }
 
     void OnTriggerEnter(Collider other)
     {
@@ -89,7 +115,10 @@ public class AddButton : MonoBehaviour
         }
         else
         {
-            GetComponent<Renderer>().material = materials[0]; // Switch to the "enlarged" material
+            if (colors.Length != 0)
+            {
+                GetComponent<Renderer>().material = materials[0]; // Switch to the "enlarged" material
+            }
         }
 
     }
@@ -112,7 +141,10 @@ public class AddButton : MonoBehaviour
         }
         else
         {
-            GetComponent<Renderer>().material = materials[1]; // Switch back to the normal material
+            if (colors.Length != 0)
+            {
+                GetComponent<Renderer>().material = materials[1]; // Switch back to the normal material
+            }
         }
 
     }
@@ -156,6 +188,16 @@ public class AddButton : MonoBehaviour
                 OpenPanel(); return;
             case "focus":
                 FocusonConst(); return;
+            case "info":
+                InfoOpen(); return;
+            case "close":
+                CloseInfo(); return;
+            case "slide":
+                SlideSwitch(); return;
+            case "color":
+                ColorBtn(); return;
+            case "palate":
+                PalateBtn(); return;
             default:
                 return; 
         }
@@ -179,6 +221,16 @@ public class AddButton : MonoBehaviour
     public void SwitchColorButton()
     {
         sf.Switch2Planet();
+
+        if (colorBtn.activeSelf)
+        {
+            colorBtn.SetActive(false);
+        }
+        else
+        {
+            colorBtn.SetActive(true);
+        }
+
     }
 
     public void EnterButton()
@@ -234,4 +286,54 @@ public class AddButton : MonoBehaviour
         }
     }
 
+    public void InfoOpen()
+    {
+        if (infoPanel.gameObject.activeSelf)
+        {
+            //infoBtn.SetActive(false);
+        }
+        else
+        {
+            openBtn.SetActive(false);
+            sf.FadeOut();
+            infoPanel.SetActive(true);
+            caveCtrl.GetComponent<CAVE2WandNavigator>().enabled = false;
+            btnPanel.SetActive(false);
+
+        }
+    }
+
+    public void CloseInfo()
+    {
+        if (infoPanel.gameObject.activeSelf)
+        {
+            openBtn.SetActive(true);
+            infoPanel.SetActive(false);
+            caveCtrl.GetComponent<CAVE2WandNavigator>().enabled = true;
+            btnPanel.SetActive(true);
+            sf.starParentGO.SetActive(true);
+        }
+    }
+
+    public void SlideSwitch()
+    {
+        presentationController.SwitchToPresentation(constIndex);
+    }
+
+    public void ColorBtn()
+    {
+        if (palateBtn.activeSelf)
+        {
+            palateBtn.SetActive(false);
+        }
+        else
+        {
+            palateBtn.SetActive(true);
+        }
+    }
+
+    public void PalateBtn()
+    {
+
+    }
 }

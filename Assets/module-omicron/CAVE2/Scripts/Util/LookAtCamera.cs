@@ -4,19 +4,22 @@ using UnityEngine;
 
 public class LookAtCamera : MonoBehaviour {
 
-    [SerializeField]
-    bool alwaysUpOrientation = true;
+
+    public GameObject wrc;
 
 	// Use this for initialization
 	void Start () {
-		
-	}
+
+        // Calculate the rotation needed to make the GameObject look at the head
+        Quaternion rotation = Quaternion.LookRotation(transform.position - wrc.gameObject.transform.position);
+
+        // Apply the rotation to the GameObject
+        transform.rotation = rotation;
+    }
 	
 	// Update is called once per frame
 	void Update () {
-        if(alwaysUpOrientation)
-		    transform.LookAt(Camera.main.transform, Camera.main.transform.TransformDirection(Vector3.up));
-        else
-            transform.LookAt(Camera.main.transform);
+
+
     }
 }

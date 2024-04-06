@@ -29,9 +29,9 @@ public class SliderHandle : MonoBehaviour
     {
         if (isGrabbed && handTransform != null)
         {
-            Vector3 handPosition = handTransform.position - grabOffset * movementSensitivity;
-            Vector3 closestPointOnTrack = GetClosestPointOnTrack(handPosition);
-            transform.position = new Vector3(closestPointOnTrack.x, transform.position.y, transform.position.z);
+            Vector3 handPosition = handTransform.position + grabOffset;
+            Vector3 closestPointOnTrack = GetClosestPointOnLine(trackStart.position, trackEnd.position, handPosition);
+            transform.position = closestPointOnTrack;
 
             // Calculate slider value based on handle position
             UpdateSliderValue();
@@ -59,15 +59,14 @@ public class SliderHandle : MonoBehaviour
         }
     }
 
-    private Vector3 GetClosestPointOnTrack(Vector3 handPosition)
+    // This function projects a point onto the line defined by two points (lineStart and lineEnd)
+    // and returns the closest point on the line to the given point
+    private Vector3 GetClosestPointOnLine(Vector3 lineStart, Vector3 lineEnd, Vector3 point)
     {
-        // Project the hand's position onto the track defined by start and end points
-        Vector3 trackDirection = (trackEnd.position - trackStart.position).normalized;
-        float maxDistance = Vector3.Distance(trackStart.position, trackEnd.position);
-        Vector3 startToHand = handPosition - trackStart.position;
-        float projectionDistance = Mathf.Clamp(Vector3.Dot(startToHand, trackDirection), 0, maxDistance);
-        Vector3 closestPoint = trackStart.position + trackDirection * projectionDistance;
-        return closestPoint;
+        Vector3 lineDirection = (lineEnd - lineStart).normalized;
+        float projectionLength = Vector3.Dot(point - lineStart, lineDirection);
+        projectionLength = Mathf.Clamp(projectionLength, 0f, Vector3.Distance(lineStart, lineEnd));
+        return lineStart + lineDirection * projectionLength;
     }
 
     private void UpdateSliderValue()

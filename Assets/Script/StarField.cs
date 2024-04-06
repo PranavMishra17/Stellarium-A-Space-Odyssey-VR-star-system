@@ -48,7 +48,7 @@ public class StarField : MonoBehaviour
     public GameObject cameraCtrl2;
 
     private bool starParsec = true;
-    private GameObject starParentGO;
+    public GameObject starParentGO;
     private GameObject planetParentGO;
     public Text loadingProgressText;
     public TextMesh loadingProgressText2;
@@ -605,7 +605,7 @@ public class StarField : MonoBehaviour
     }
 
 
-    private Dictionary<int, char> LoadExoplanetData(string filename = "final_exoplanetHIP")
+    private Dictionary<int, char> LoadExoplanetData(string filename = "final_exx")
     {
         Dictionary<int, char> exoplanetData = new Dictionary<int, char>();
 
@@ -686,13 +686,15 @@ public class StarField : MonoBehaviour
         // Example of mapping spectral types to Unity colors. Customize as needed.
         switch (spectType)
         {
-            case 'O': return Color.blue;
-            case 'B': return Color.cyan;
-            case 'A': return Color.white;
-            case 'F': return Color.yellow;
-            case 'G': return Color.yellow * 0.8f; // White yellowish
-            case 'K': return new Color(1.0f, 0.8f, 0.5f); // orange
-            case 'M': return Color.red;
+            case '0': return Color.white;
+            case '1': return Color.blue;
+            case '2': return Color.cyan;
+            case '3': return Color.magenta;
+            case '4': return Color.red;
+            case '5': return Color.green; // White yellowish
+            case '6': return Color.grey; // pink
+            case '7': return new Color(0.6f, 0.4f, 0.2f);
+
             default: return Color.white; // Default color if spectral type is unknown
         }
     }
@@ -717,6 +719,16 @@ public class StarField : MonoBehaviour
     }
 
 
+    public void FadeOut()
+    {
+        StartCoroutine(FadeOutStars());
+    }
+
+    IEnumerator FadeOutStars()
+    {
+        yield return new WaitForSeconds(5f);
+        starParentGO.SetActive(false);
+    }
 
 
     /////////////////////////////////////////////////////- Constellations below -//////////////////////////////////////////////////////////////////
@@ -845,7 +857,7 @@ public class StarField : MonoBehaviour
         Quaternion targetRotation = Quaternion.LookRotation(targetPosition - cameraCtrl.transform.position);
 
         Vector3 origin = Vector3.zero;
-        Quaternion targetRotation2 = Quaternion.LookRotation(origin - cameraCtrl2.transform.position);
+        //Quaternion targetRotation2 = Quaternion.LookRotation(origin - cameraCtrl2.transform.position);
 
         while (elapsed < duration)
         {
@@ -854,7 +866,7 @@ public class StarField : MonoBehaviour
             elapsed += Time.deltaTime;
             yield return null;
         }
-        cameraCtrl2.transform.rotation = new Quaternion (0,0,0,0);
+        //cameraCtrl2.transform.rotation = new Quaternion (0,0,0,0);
     }
 
     public void ToggleConstellationToIndex(int index)
