@@ -13,6 +13,7 @@ public class SharpText : MonoBehaviour {
 	void Start() {
 
         OnCameraSizeChange();
+        textMesh = GetComponent<TextMesh>();
 	}
 
     public void OnCameraSizeChange()//call this function everytime you change camera size
