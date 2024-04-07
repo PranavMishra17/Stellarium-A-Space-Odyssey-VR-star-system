@@ -1,8 +1,13 @@
 # VR_Assignment1_CS528_UIC
 
+Stellarium is a virtual reality project developed in Unity for the CAVE 2 system, primarily aimed at the CS528 VR class at UIC. It features over 107,000 stars and various constellations accurately placed as seen from Earth. Users can navigate space, explore constellations, and observe stellar movements over time, adjusted by user input. The project includes informative presentations on select constellations, detailing their history and significance. Designed for educational purposes, Stellarium leverages CAVE 2's immersive environment to offer a hands-on learning experience about the universe.
+
 ## Gameplay
-https://youtu.be/wU8HvgE5W-U
- 
+[https://youtu.be/wU8HvgE5W-U](https://www.youtube.com/watch?v=EX0c-6E8iNc) 
+
+## Website
+https://pranavgamedev17.wixsite.com/stellariumaso
+
 ## Clone the repo
 Clone the repo.
 
