@@ -108,8 +108,11 @@ public class PresentationController : MonoBehaviour
                 // Resize the quad to maintain the aspect ratio of the sprite
                 ResizeQuadToSprite(spriteToDisplay);
 
-                // Set the slide duration to the length of the audio clip in seconds
-                if (slide.audioClip[slideIndex] != null)
+                if (slideIndex == slide.audioClip.Length)
+                {
+                    slideDuration = slide.audioClip[slideIndex].length;
+                }
+                else if (slide.audioClip[slideIndex] != null) // Set the slide duration to the length of the audio clip in seconds
                 {
                     slideDuration = slide.audioClip[slideIndex].length + 4f;
                     Debug.Log(slideDuration + 4f + " is clip length");

@@ -1312,6 +1312,8 @@ public class StarField : MonoBehaviour
         switchFeetTxt.text = "Switch to Parsec";
         distunderTxt.text = "feet";
         timeElapsedText.text = "0";
+        totalSimulatedYears = 0f;
+        UpdateTimeElapsed(0f);
     }
 
     public void ShiftStarsToParsecs()
@@ -1326,6 +1328,8 @@ public class StarField : MonoBehaviour
         switchFeetTxt.text = "Switch to Feet";
         distunderTxt.text = "parsec";
         timeElapsedText.text = "0";
+        totalSimulatedYears = 0f;
+        UpdateTimeElapsed(0f);
 
     }
 

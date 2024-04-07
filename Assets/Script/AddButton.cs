@@ -39,6 +39,8 @@ public class AddButton : MonoBehaviour
     public GameObject colorBtn;
     public GameObject palateBtn;
 
+    public bool shouldDisable = false;
+
     void Start()
     {
         originalScale = transform.localScale;
@@ -51,7 +53,7 @@ public class AddButton : MonoBehaviour
         // Apply the rotation to the GameObject
         transform.rotation = rotation;
 
-        if (thisButtonName == "info")
+        if (shouldDisable)
         {
             SetActiveFalse();
         }
@@ -115,7 +117,7 @@ public class AddButton : MonoBehaviour
         }
         else
         {
-            if (colors.Length != 0)
+            if (materials.Length != 0)
             {
                 GetComponent<Renderer>().material = materials[0]; // Switch to the "enlarged" material
             }
@@ -141,7 +143,7 @@ public class AddButton : MonoBehaviour
         }
         else
         {
-            if (colors.Length != 0)
+            if (materials.Length != 0)
             {
                 GetComponent<Renderer>().material = materials[1]; // Switch back to the normal material
             }
@@ -198,6 +200,8 @@ public class AddButton : MonoBehaviour
                 ColorBtn(); return;
             case "palate":
                 PalateBtn(); return;
+            case "appclose":
+                CloseApp(); return;
             default:
                 return; 
         }
@@ -335,5 +339,11 @@ public class AddButton : MonoBehaviour
     public void PalateBtn()
     {
 
+    }
+
+    public void CloseApp()
+    {
+        Debug.Log("CLOSE APP CALLED");
+        Application.Quit();
     }
 }
