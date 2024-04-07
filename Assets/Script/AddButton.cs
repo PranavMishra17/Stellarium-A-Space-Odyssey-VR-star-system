@@ -41,6 +41,8 @@ public class AddButton : MonoBehaviour
 
     public bool shouldDisable = false;
 
+    public int direction;
+
     void Start()
     {
         originalScale = transform.localScale;
@@ -68,7 +70,7 @@ public class AddButton : MonoBehaviour
 
     IEnumerator FadeOutStars()
     {
-        yield return new WaitForSeconds(2f);
+        yield return new WaitForSeconds(0.1f);
         gameObject.SetActive(false);
     }
 
@@ -202,6 +204,8 @@ public class AddButton : MonoBehaviour
                 PalateBtn(); return;
             case "appclose":
                 CloseApp(); return;
+            case "toggle":
+                ToggleConst(); return;
             default:
                 return; 
         }
@@ -345,5 +349,10 @@ public class AddButton : MonoBehaviour
     {
         Debug.Log("CLOSE APP CALLED");
         Application.Quit();
+    }
+
+    public void ToggleConst()
+    {
+        sf.ToggleConstellation(direction);
     }
 }

@@ -751,6 +751,8 @@ public class StarField : MonoBehaviour
 
     public Color raycolorFocused;
 
+    public TextMesh constName;
+
 
     class Constellation
     {
@@ -785,7 +787,7 @@ public class StarField : MonoBehaviour
 
     private GameObject previouslyFocusedConstellation = null;
 
-    void ToggleConstellation(int direction)
+    public void ToggleConstellation(int direction)
     {
         if (constellationstxt.Count == 0) return;
 
@@ -821,6 +823,8 @@ public class StarField : MonoBehaviour
 
         Constellation focusedConstellation = constellationstxt[currentConstellationIndex];
         GameObject constellationGO = GameObject.Find($"Constellation_{focusedConstellation.Name}");
+
+        constName.text = focusedConstellation.Name;
 
         if (constellationGO != null)
         {
@@ -896,6 +900,8 @@ public class StarField : MonoBehaviour
 
         Constellation focusedConstellation = constellationstxt[currentConstellationIndex];
         GameObject constellationGO = GameObject.Find($"Constellation_{focusedConstellation.Name}");
+
+        constName.text = focusedConstellation.Name;
 
         if (constellationGO != null)
         {

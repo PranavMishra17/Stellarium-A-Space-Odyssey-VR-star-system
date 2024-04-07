@@ -55,7 +55,7 @@ public class PresentationController : MonoBehaviour
 
     IEnumerator FadeOutStars()
     {
-        yield return new WaitForSeconds(2f);
+        yield return new WaitForSeconds(0.1f);
         gameObject.SetActive(false);
     }
 
