@@ -27,7 +27,7 @@ public class WandRaycaster : MonoBehaviour
 
         if (Input.GetMouseButtonUp(2))
         {
-            cylinder.SetActive(false);
+            cylinder.SetActive(true);
 
             if (button != null)
             {
