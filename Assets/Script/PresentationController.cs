@@ -26,6 +26,11 @@ public class PresentationController : MonoBehaviour
         audioSource = GetComponent<AudioSource>();
 
         SetActiveFalse();
+
+        if (gameObject.activeSelf)
+        {
+            PlayInitialAudio();
+        }
     }
 
     void Update()
@@ -57,6 +62,22 @@ public class PresentationController : MonoBehaviour
     {
         yield return new WaitForSeconds(0.1f);
         gameObject.SetActive(false);
+    }
+
+    public void PlayInitialAudio()
+    {
+        StartCoroutine(PlayAudi());
+    }
+
+    IEnumerator PlayAudi()
+    {
+        yield return new WaitForSeconds(3f);
+
+        if (!audioSource.isPlaying)
+        {
+            audioSource.Play();
+        }
+
     }
 
     public void StartPresentation(int index)

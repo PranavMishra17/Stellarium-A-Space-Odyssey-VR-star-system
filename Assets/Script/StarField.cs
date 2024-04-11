@@ -630,34 +630,38 @@ public class StarField : MonoBehaviour
 
         return exoplanetData;
     }
-
     public void UpdateStarColors(Dictionary<int, char> exoplanetData)
     {
-        int matchCount = 0; // Counter for matching stars
+        int updatedCount = 0; // Counter for stars whose colors were updated
         foreach (var starInfo in loadedData.stars)
         {
-            // Check if the current star's HIP number is present in the exoplanet data
-            if (exoplanetData.TryGetValue((int)starInfo.hipparcosNumber, out char spectType))
+            // Find the star GameObject using the star map
+            GameObject starObject;
+            if (starMap.TryGetValue((int)starInfo.hipparcosNumber, out starObject))
             {
-                // Find the star GameObject using the star map
-                GameObject starObject;
-                if (starMap.TryGetValue((int)starInfo.hipparcosNumber, out starObject))
+                Color newColor;
+                // Check if the current star's HIP number is present in the exoplanet data
+                if (exoplanetData.TryGetValue((int)starInfo.hipparcosNumber, out char spectType))
                 {
                     // Convert spectral type to color
-                    Color newColor = SpectralTypeToColor(spectType);
-
-                    // Update the star's color using the calculated new color
-                    starObject.GetComponent<MeshRenderer>().material.color = newColor;
-
-                    // Increment the match counter
-                    matchCount++;
+                    newColor = SpectralTypeToColor(spectType);
                 }
+                else
+                {
+                    // Color stars not present in exoplanet data plain white
+                    newColor = Color.white;
+                }
+
+                // Update the star's color
+                starObject.GetComponent<MeshRenderer>().material.color = newColor;
+                updatedCount++;
             }
         }
 
-        // Log the number of stars that were updated
-        Debug.Log($"Updated colors for {matchCount} stars based on exoplanet data.");
+        // Log the number of stars updated
+        Debug.Log($"Updated colors for {updatedCount} stars with exoplanet data or set to default white.");
     }
+
 
     public void RevertStarColors()
     {

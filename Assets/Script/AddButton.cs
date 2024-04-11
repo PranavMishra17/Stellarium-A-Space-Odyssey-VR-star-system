@@ -80,7 +80,7 @@ public class AddButton : MonoBehaviour
         if (other.CompareTag("Ray"))
         {
             isLineOnQuad = true;
-            Debug.Log("Line entered the quad.");
+            //Debug.Log("Line entered the quad.");
             wrc.button = gameObject;
             OnPointerEnter();
             // Call any other functions or events you want to trigger when the line enters the quad
@@ -93,7 +93,7 @@ public class AddButton : MonoBehaviour
         if (other.CompareTag("Ray"))
         {
             isLineOnQuad = false;
-            Debug.Log("Line exited the quad.");
+            //Debug.Log("Line exited the quad.");
             wrc.button = null;
             OnPointerExit();
             // Call any other functions or events you want to trigger when the line exits the quad
