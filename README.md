@@ -1,4 +1,4 @@
-# VR_Assignment1_CS528_UIC
+# Stellarium-A Space Odyssey
 
 ![Stellarium: A Space Odyssey](https://raw.githubusercontent.com/PranavMishra17/VRAssignment1_CS528_UIC/main/Icon.png)
 
